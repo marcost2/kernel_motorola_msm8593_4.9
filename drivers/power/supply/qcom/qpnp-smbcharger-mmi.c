@@ -6987,6 +6987,13 @@ static void batt_ov_wa_check(struct smbchg_chip *chip)
 	}
 }
 
+#define USBIN_ALLOW_MASK		SMB_MASK(2, 0)
+#define USBIN_ALLOW_5V			0x0
+#define USBIN_ALLOW_5V_9V		0x1
+#define USBIN_ALLOW_5V_TO_9V		0x2
+#define USBIN_ALLOW_9V			0x3
+#define USBIN_ALLOW_5V_UNREG		0x4
+#define USBIN_ALLOW_5V_9V_UNREG		0x5
 static int smbchg_hw_init(struct smbchg_chip *chip)
 {
 	int rc, i;
@@ -7344,6 +7351,14 @@ static int smbchg_hw_init(struct smbchg_chip *chip)
 			chip->cfg_fastchg_current_ma);
 	if (rc < 0) {
 		SMB_ERR(chip, "Couldn't vote fastchg ma rc = %d\n", rc);
+		return rc;
+	}
+
+	rc = smbchg_sec_masked_write(chip,
+				     chip->usb_chgpth_base + USBIN_CHGR_CFG,
+				     USBIN_ALLOW_MASK, USBIN_ALLOW_5V_TO_9V);
+	if (rc < 0) {
+		dev_err(chip->dev, "Couldn't write usb allowance rc=%d\n", rc);
 		return rc;
 	}
 
