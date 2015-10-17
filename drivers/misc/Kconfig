@@ -861,6 +861,13 @@ config MODS_USB_EXT_BRIDGE
 	  module with the kernel USB drivers. If you are using the MODS
 	  kernel modules, you should select yes, if not no.
 
+config MODS_CODEC_BUS
+	tristate "mods codec bus interface support"
+	default n
+	help
+	  This enables bus interface for mods shim sound codec to talk to
+	  greybus sound codec module.
+
 config INPUT_DRV2624_HAPTICS
 	tristate "TI DRV2624 haptics support"
 	depends on INPUT && I2C

@@ -94,4 +94,4 @@ obj-$(CONFIG_OKL4_LINK_SHBUF)    += okl4-link-shbuf.o
 obj-$(CONFIG_DROPBOX) += dropbox.o
 obj-$(CONFIG_FUSB302) += fusb302/
 obj-$(CONFIG_INPUT_DRV2624_HAPTICS)	+= drv2624_mmi.o
-
+obj-$(CONFIG_MODS_CODEC_BUS) += mods_codec_bus.o
