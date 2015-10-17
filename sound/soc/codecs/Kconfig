@@ -1142,4 +1142,9 @@ config SND_SOC_TFA98XX
 	depends on I2C
 	help
 	Enables support for NXP98xx Smart PA.
+
+config SND_SOC_MODS_CODEC_SHIM
+	tristate "shim codec for mods"
+	depends on MODS_CODEC_BUS
+
 endmenu
