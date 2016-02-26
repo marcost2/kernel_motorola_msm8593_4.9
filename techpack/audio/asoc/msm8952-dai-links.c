@@ -359,7 +359,34 @@ static struct snd_soc_dai_link msm8952_tasha_be_dai[] = {
 	},
 };
 
+
 #ifdef CONFIG_SND_SOC_MADERA
+static const struct snd_soc_pcm_stream cs35l34_params = {
+	.formats = SNDRV_PCM_FORMAT_S16_LE,
+	.rate_min = 48000,
+	.rate_max = 48000,
+	.channels_min = 1,
+	.channels_max = 2,
+};
+
+static struct snd_soc_dai_link msm8952_madera_l34_dai_link[] = {
+	{
+		.name = "MADERA-AMP",
+		.stream_name = "MADERA-AMP Playback",
+		.cpu_name = "cs47l35-codec",
+		.cpu_dai_name = "cs47l35-aif1",
+		.codec_name = "cs35l34.7-0040",
+		.codec_dai_name = "cs35l34",
+		.init = madera_cs35l34_dai_init,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		SND_SOC_DAIFMT_CBS_CFS,
+		.no_pcm = 1,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.params = &cs35l34_params,
+	}
+};
+
 static struct snd_soc_dai_link msm8952_madera_be_dai[] = {
 	/* Backend DAI Links */
 	{
@@ -1533,6 +1560,7 @@ static struct snd_soc_dai_link msm8952_madera_dai_links[
 ARRAY_SIZE(msm8952_common_fe_dai) +
 ARRAY_SIZE(msm8952_madera_fe_dai) +
 ARRAY_SIZE(msm8952_common_be_dai) +
+ARRAY_SIZE(msm8952_madera_l34_dai_link) +
 ARRAY_SIZE(msm8952_madera_be_dai)];
 #else
 int msm8952_init_wsa_dev(struct platform_device *pdev,
@@ -1724,6 +1752,9 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	struct snd_soc_card *card = &snd_soc_card_msm_card;
 	struct snd_soc_dai_link *msm8952_dai_links = NULL;
 	int num_links, ret, len1, len2, len3, len4, len5 = 0;
+#ifdef CONFIG_SND_SOC_MADERA
+	int len_2a = 0;
+#endif
 	enum codec_variant codec_ver = 0;
 	const char *tasha_lite[NUM_OF_TASHA_LITE_DEVICE] = {
 		"msm8952-tashalite-snd-card",
@@ -1772,7 +1803,8 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	else if (!strcmp(card->name, "msm8952-madera-snd-card")) {
 		len1 = ARRAY_SIZE(msm8952_common_fe_dai);
 		len2 = len1 + ARRAY_SIZE(msm8952_madera_fe_dai);
-		len3 = len2 + ARRAY_SIZE(msm8952_common_be_dai);
+		len_2a = len2 + ARRAY_SIZE(msm8952_common_be_dai);
+		len3  = len_2a + ARRAY_SIZE(msm8952_madera_l34_dai_link);
 		snd_soc_card_msm_card.name = card->name;
 		card = &snd_soc_card_msm_card;
 		num_links = ARRAY_SIZE(msm8952_madera_dai_links);
@@ -1782,6 +1814,9 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			msm8952_madera_fe_dai, sizeof(msm8952_madera_fe_dai));
 		memcpy(msm8952_madera_dai_links + len2,
 			msm8952_common_be_dai, sizeof(msm8952_common_be_dai));
+		memcpy(msm8952_madera_dai_links + len_2a,
+			msm8952_madera_l34_dai_link,
+			sizeof(msm8952_madera_l34_dai_link));
 		memcpy(msm8952_madera_dai_links + len3,
 			msm8952_madera_be_dai, sizeof(msm8952_madera_be_dai));
 		msm8952_dai_links = msm8952_madera_dai_links;
