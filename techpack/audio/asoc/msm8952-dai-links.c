@@ -1283,34 +1283,6 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.ignore_suspend = 1,
 	},
 	{
-		.name = LPASS_BE_INT_BT_SCO_RX,
-		.stream_name = "Internal BT-SCO Playback",
-		.cpu_dai_name = "msm-dai-q6-dev.12288",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-rx",
-		.no_pcm = 1,
-		.dpcm_playback = 1,
-		.id = MSM_BACKEND_DAI_INT_BT_SCO_RX,
-		.be_hw_params_fixup = msm_btsco_be_hw_params_fixup,
-		/* this dai link has playback support */
-		.ignore_pmdown_time = 1,
-		.ignore_suspend = 1,
-	},
-	{
-		.name = LPASS_BE_INT_BT_SCO_TX,
-		.stream_name = "Internal BT-SCO Capture",
-		.cpu_dai_name = "msm-dai-q6-dev.12289",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-tx",
-		.no_pcm = 1,
-		.dpcm_capture = 1,
-		.id = MSM_BACKEND_DAI_INT_BT_SCO_TX,
-		.be_hw_params_fixup = msm_btsco_be_hw_params_fixup,
-		.ignore_suspend = 1,
-	},
-	{
 		.name = LPASS_BE_AFE_PCM_RX,
 		.stream_name = "AFE Playback",
 		.cpu_dai_name = "msm-dai-q6-dev.224",
@@ -1458,6 +1430,7 @@ static struct snd_soc_dai_link msm8952_hdmi_dba_dai_link[] = {
 	},
 };
 
+#ifndef CONFIG_SND_SOC_MADERA
 static struct snd_soc_dai_link msm8952_quin_dai_link[] = {
 	{
 		.name = LPASS_BE_QUIN_MI2S_RX,
@@ -1475,6 +1448,7 @@ static struct snd_soc_dai_link msm8952_quin_dai_link[] = {
 		.ignore_suspend = 1,
 	},
 };
+#endif
 
 static struct snd_soc_dai_link msm8952_tdm_be_dai_link[] = {
 	/* TDM be dai links */
@@ -1824,6 +1798,7 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	}
 #endif
 
+#ifndef CONFIG_SND_SOC_MADERA
 	if (of_property_read_bool(dev->of_node, "qcom,hdmi-dba-codec-rx")) {
 		dev_dbg(dev, "%s(): hdmi dba audio support present\n",
 				__func__);
@@ -1844,6 +1819,7 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			sizeof(msm8952_tdm_be_dai_link));
 		len5 += ARRAY_SIZE(msm8952_tdm_be_dai_link);
 	}
+#endif
 	card->dai_link = msm8952_dai_links;
 	card->num_links = len5;
 	card->dev = dev;
