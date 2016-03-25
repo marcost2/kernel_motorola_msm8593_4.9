@@ -37,6 +37,12 @@ enum TASHA_LITE_DEVICE {
 
 static struct snd_soc_card snd_soc_card_msm_card;
 
+static struct snd_soc_ops msm8952_quat_mi2s_be_ops = {
+	.startup = msm_quat_mi2s_snd_startup,
+	.hw_params = msm_mi2s_snd_hw_params,
+	.shutdown = msm_quat_mi2s_snd_shutdown,
+};
+
 static struct snd_soc_ops msm8952_quin_mi2s_be_ops = {
 	.startup = msm_quin_mi2s_snd_startup,
 	.hw_params = msm_mi2s_snd_hw_params,
@@ -384,6 +390,39 @@ static struct snd_soc_dai_link msm8952_madera_l34_dai_link[] = {
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 		.params = &cs35l34_params,
+	}
+};
+
+static struct snd_soc_dai_link msm8952_madera_mods_be_dai[] = {
+	{
+		/*mods I2S in and out*/
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_dai_name = "mods_codec_shim_dai",
+		.codec_name = "mods_codec_shim",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_pmdown_time = 1, /* dai link has playback support */
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_QUAT_MI2S_TX,
+		.stream_name = "Quaternary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_dai_name = "mods_codec_shim_dai",
+		.codec_name = "mods_codec_shim",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_suspend = 1,
 	}
 };
 
@@ -1564,7 +1603,8 @@ ARRAY_SIZE(msm8952_common_fe_dai) +
 ARRAY_SIZE(msm8952_madera_fe_dai) +
 ARRAY_SIZE(msm8952_common_be_dai) +
 ARRAY_SIZE(msm8952_madera_l34_dai_link) +
-ARRAY_SIZE(msm8952_madera_be_dai)];
+ARRAY_SIZE(msm8952_madera_be_dai) +
+ARRAY_SIZE(msm8952_madera_mods_be_dai)];
 #else
 int msm8952_init_wsa_dev(struct platform_device *pdev,
 			struct snd_soc_card *card)
@@ -1756,7 +1796,7 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	struct snd_soc_dai_link *msm8952_dai_links = NULL;
 	int num_links, ret, len1, len2, len3, len4, len5 = 0;
 #ifdef CONFIG_SND_SOC_MADERA
-	int len_2a = 0;
+	int len_2a, len_2b = 0;
 #endif
 	enum codec_variant codec_ver = 0;
 	const char *tasha_lite[NUM_OF_TASHA_LITE_DEVICE] = {
@@ -1807,7 +1847,8 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 		len1 = ARRAY_SIZE(msm8952_common_fe_dai);
 		len2 = len1 + ARRAY_SIZE(msm8952_madera_fe_dai);
 		len_2a = len2 + ARRAY_SIZE(msm8952_common_be_dai);
-		len3  = len_2a + ARRAY_SIZE(msm8952_madera_l34_dai_link);
+		len_2b  = len_2a + ARRAY_SIZE(msm8952_madera_l34_dai_link);
+		len3 = len_2b + ARRAY_SIZE(msm8952_madera_be_dai);
 		snd_soc_card_msm_card.name = card->name;
 		card = &snd_soc_card_msm_card;
 		num_links = ARRAY_SIZE(msm8952_madera_dai_links);
@@ -1820,10 +1861,13 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 		memcpy(msm8952_madera_dai_links + len_2a,
 			msm8952_madera_l34_dai_link,
 			sizeof(msm8952_madera_l34_dai_link));
-		memcpy(msm8952_madera_dai_links + len3,
+		memcpy(msm8952_madera_dai_links + len_2b,
 			msm8952_madera_be_dai, sizeof(msm8952_madera_be_dai));
+		memcpy(msm8952_madera_dai_links + len3,
+			msm8952_madera_mods_be_dai,
+			sizeof(msm8952_madera_mods_be_dai));
 		msm8952_dai_links = msm8952_madera_dai_links;
-		len4 = len3 + ARRAY_SIZE(msm8952_madera_be_dai);
+		len4 = len3 + ARRAY_SIZE(msm8952_madera_mods_be_dai);
 	}
 #endif
 
