@@ -40,6 +40,10 @@
 #endif
 #include "msm8952-slimbus.h"
 
+#ifdef CONFIG_MODS_MODBUS_EXT
+#include <linux/mods/modbus_ext.h>
+#endif
+
 #define DRV_NAME "msm8952-slimbus-wcd"
 
 #define BTSCO_RATE_8KHZ         8000
@@ -96,6 +100,7 @@ enum {
 	TDM_MAX,
 };
 
+static atomic_t mods_mi2s_active;
 static int slim0_rx_sample_rate = SAMPLING_RATE_48KHZ;
 static int slim0_tx_sample_rate = SAMPLING_RATE_48KHZ;
 static int slim1_tx_sample_rate = SAMPLING_RATE_48KHZ;
@@ -2791,6 +2796,9 @@ static struct notifier_block adsp_state_notifier_block = {
 void msm_quat_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
+#ifdef CONFIG_MODS_MODBUS_EXT
+	struct modbus_ext_status modbus_status;
+#endif
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_card *card = rtd->card;
 	struct msm8952_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
@@ -2798,11 +2806,23 @@ void msm_quat_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 	pr_debug("%s(): substream = %s  stream = %d, ext_pa = %d\n", __func__,
 		 substream->name, substream->stream, pdata->ext_pa);
 
+#ifdef CONFIG_MODS_MODBUS_EXT
+	if (!atomic_dec_and_test(&mods_mi2s_active)) {
+		pr_debug("%s: port users not zero don't shut down yet\n",
+				__func__);
+		return;
+	}
+	modbus_status.proto = MODBUS_PROTO_I2S;
+	modbus_status.active = false;
+	modbus_ext_set_state(&modbus_status);
+#endif
+
 	ret = quat_mi2s_clk_ctl(substream, false);
 	if (ret < 0)
 		pr_err("%s:clock disable failed\n", __func__);
 	if (atomic_read(&pdata->clk_ref.quat_mi2s_clk_ref) > 0)
 		atomic_dec(&pdata->clk_ref.quat_mi2s_clk_ref);
+#ifndef CONFIG_SND_SOC_MADERA
 	if (pdata->mi2s_gpio_p[QUAT_MI2S]) {
 		ret =  msm_cdc_pinctrl_select_sleep_state(
 			pdata->mi2s_gpio_p[QUAT_MI2S]);
@@ -2812,6 +2832,7 @@ void msm_quat_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 			return;
 		}
 	}
+#endif
 }
 
 int msm_prim_auxpcm_startup(struct snd_pcm_substream *substream)
@@ -2873,12 +2894,22 @@ int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+#ifdef CONFIG_MODS_MODBUS_EXT
+	struct modbus_ext_status modbus_status;
+#endif
 	struct msm8952_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret = 0, val;
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 		 substream->name, substream->stream);
 
+#ifdef CONFIG_MODS_MODBUS_EXT
+	modbus_status.proto = MODBUS_PROTO_I2S;
+	modbus_status.active = true;
+
+	atomic_inc(&mods_mi2s_active);
+	modbus_ext_set_state(&modbus_status);
+#endif
 	/* Configure mux for quaternary i2s */
 	if (pdata->vaddr_gpio_mux_mic_ctl) {
 		val = ioread32(pdata->vaddr_gpio_mux_mic_ctl);
@@ -2891,7 +2922,7 @@ int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 				__func__);
 		return ret;
 	}
-
+#ifndef CONFIG_SND_SOC_MADERA
 	if (pdata->mi2s_gpio_p[QUAT_MI2S]) {
 		ret =  msm_cdc_pinctrl_select_active_state(
 					pdata->mi2s_gpio_p[QUAT_MI2S]);
@@ -2901,7 +2932,7 @@ int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 			goto err;
 		}
 	}
-
+#endif
 	if (atomic_inc_return(&pdata->clk_ref.quat_mi2s_clk_ref) == 1) {
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
 		if (ret < 0)
@@ -2909,11 +2940,13 @@ int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	}
 	return ret;
 
+#ifndef CONFIG_SND_SOC_MADERA
 err:
 	ret = quat_mi2s_clk_ctl(substream, false);
 	if (ret < 0)
 		pr_err("%s:failed to disable sclk\n", __func__);
 	return ret;
+#endif
 }
 
 int msm_quin_mi2s_snd_startup(struct snd_pcm_substream *substream)
@@ -2939,6 +2972,7 @@ int msm_quin_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		pr_err("failed to enable sclk\n");
 		return ret;
 	}
+#ifndef CONFIG_SND_SOC_MADERA
 	if (pdata->mi2s_gpio_p[QUIN_MI2S]) {
 		ret =  msm_cdc_pinctrl_select_active_state(
 				pdata->mi2s_gpio_p[QUIN_MI2S]);
@@ -2947,18 +2981,20 @@ int msm_quin_mi2s_snd_startup(struct snd_pcm_substream *substream)
 					goto err;
 		}
 	}
-
+#endif
 	if (atomic_inc_return(&pdata->clk_ref.quin_mi2s_clk_ref) == 1) {
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
 		if (ret < 0)
 			pr_debug("%s: set fmt cpu dai failed\n", __func__);
 	}
 	return ret;
+#ifndef CONFIG_SND_SOC_MADERA
 err:
 	ret = quin_mi2s_sclk_ctl(substream, false);
 	if (ret < 0)
 		pr_err("failed to disable sclk\n");
 	return ret;
+#endif
 }
 
 void msm_quin_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
@@ -2975,6 +3011,7 @@ void msm_quin_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 		pr_err("%s:clock disable failed\n", __func__);
 	if (atomic_read(&pdata->clk_ref.quin_mi2s_clk_ref) > 0)
 		atomic_dec(&pdata->clk_ref.quin_mi2s_clk_ref);
+#ifndef CONFIG_SND_SOC_MADERA
 	if (pdata->mi2s_gpio_p[QUIN_MI2S]) {
 		ret =  msm_cdc_pinctrl_select_sleep_state(
 				pdata->mi2s_gpio_p[QUIN_MI2S]);
@@ -2984,6 +3021,7 @@ void msm_quin_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 			return;
 		}
 	}
+#endif
 }
 
 int msm_tdm_startup(struct snd_pcm_substream *substream)
@@ -3912,6 +3950,7 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 						"qcom,quat-mi2s-gpios", 0);
 	pdata->mi2s_gpio_p[QUIN_MI2S] = of_parse_phandle(pdev->dev.of_node,
 						"qcom,quin-mi2s-gpios", 0);
+	atomic_set(&mods_mi2s_active, 0);
 
 	return 0;
 err:
