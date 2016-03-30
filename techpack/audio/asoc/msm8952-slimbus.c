@@ -174,8 +174,10 @@ static unsigned int tdm_slot_offset[TDM_MAX][TDM_SLOT_OFFSET_MAX] = {
 	{0, 4, 8, 12, 16, 20, 24, 28},
 };
 
+#ifndef CONFIG_SND_SOC_MADERA
 static int msm8952_enable_codec_mclk(struct snd_soc_codec *codec, int enable,
 					bool dapm);
+#endif
 
 static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.read_fw_bin = false,
@@ -366,7 +368,7 @@ static int msm8952_set_spk(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-
+#ifndef CONFIG_SND_SOC_MADERA
 static int msm8952_enable_codec_mclk(struct snd_soc_codec *codec, int enable,
 					bool dapm)
 {
@@ -380,6 +382,7 @@ static int msm8952_enable_codec_mclk(struct snd_soc_codec *codec, int enable,
 
 	return 0;
 }
+#endif
 
 static int slim5_rx_sample_rate_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -3221,17 +3224,41 @@ static int msm8952_mclk_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-
+#ifdef CONFIG_SND_SOC_MADERA
+	int ret;
+#endif
 	pr_debug("%s: event = %d\n", __func__, event);
 
-#ifndef CONFIG_SND_SOC_MARLEY
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+#ifdef CONFIG_SND_SOC_MADERA
+		ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
+			MADERA_FLL_SRC_SLIMCLK,
+			1536000, MADERA_SYSCLK_RATE);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to set MCLK2 %d\n",
+				ret);
+			return ret;
+		}
+		break;
+#else
 		return msm8952_enable_codec_mclk(codec, 1, true);
-	case SND_SOC_DAPM_POST_PMD:
-		return msm8952_enable_codec_mclk(codec, 0, true);
-	}
 #endif
+	case SND_SOC_DAPM_POST_PMD:
+#ifdef CONFIG_SND_SOC_MADERA
+		ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
+			MADERA_FLL_SRC_MCLK2,
+			32768, MADERA_SYSCLK_RATE);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to set MCLK2 %d\n",
+				ret);
+			return ret;
+		}
+		break;
+#else
+		return msm8952_enable_codec_mclk(codec, 0, true);
+#endif
+	}
 	return 0;
 }
 
@@ -3540,6 +3567,9 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_write(codec, 0x1704, 0);
 	snd_soc_write(codec, 0x1705, 0);
 	snd_soc_write(codec, 0x1704, 0x40);
+
+	/* Set Slimbus FLL input clock to 1.536MHz */
+	snd_soc_write(codec, MADERA_SLIMBUS_FRAMER_REF_GEAR, 0x6);
 
 	snd_soc_dapm_ignore_suspend(dapm, "MICBIAS1");
 	snd_soc_dapm_ignore_suspend(dapm, "MICBIAS2");
