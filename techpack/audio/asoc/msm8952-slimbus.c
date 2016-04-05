@@ -79,11 +79,10 @@
 
 #define TDM_SLOT_OFFSET_MAX    8
 
-
 #ifdef CONFIG_SND_SOC_MADERA
 #define FLL_RATE_MADERA 294912000
 #define MADERA_SYSCLK_RATE (FLL_RATE_MADERA / 3)
-#define DSPCLK_RATE (FLL_RATE_MADERA / 2)
+#define MADERA_DSPCLK_RATE (FLL_RATE_MADERA / 2)
 #define CS35L34_MCLK_RATE 6144000
 #endif
 
@@ -3538,6 +3537,14 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 		SND_SOC_CLOCK_IN);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set SYSCLK %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_codec_set_sysclk(codec, MADERA_CLK_DSPCLK,
+			MADERA_CLK_SRC_FLL1, MADERA_DSPCLK_RATE,
+			SND_SOC_CLOCK_IN);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to set DSPCLK %d\n", ret);
 		return ret;
 	}
 
