@@ -243,6 +243,16 @@ static struct snd_soc_dai_link msm8952_madera_fe_dai[] = {
 		.codec_name = "cs47l35-codec",
 		.ignore_suspend = 1,
 		.dynamic = 0,
+	},
+	{
+		.name = "CPU-DSP1 Text",
+		.stream_name = "CPU-DSP1 Text",
+		.cpu_dai_name = "cs47l35-dsp1-cpu-txt",
+		.platform_name = "cs47l35-codec",
+		.codec_dai_name = "cs47l35-dsp1-txt",
+		.codec_name = "cs47l35-codec",
+		.ignore_suspend = 1,
+		.dynamic = 0,
 	}
 };
 #endif
