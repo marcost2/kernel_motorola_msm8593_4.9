@@ -1538,7 +1538,6 @@ static struct snd_soc_dai_link msm8952_hdmi_dba_dai_link[] = {
 	},
 };
 
-#ifndef CONFIG_SND_SOC_MADERA
 static struct snd_soc_dai_link msm8952_quin_dai_link[] = {
 	{
 		.name = LPASS_BE_QUIN_MI2S_RX,
@@ -1556,7 +1555,6 @@ static struct snd_soc_dai_link msm8952_quin_dai_link[] = {
 		.ignore_suspend = 1,
 	},
 };
-#endif
 
 static struct snd_soc_dai_link msm8952_tdm_be_dai_link[] = {
 	/* TDM be dai links */
@@ -1644,7 +1642,8 @@ ARRAY_SIZE(msm8952_madera_fe_dai) +
 ARRAY_SIZE(msm8952_common_be_dai) +
 ARRAY_SIZE(msm8952_madera_l34_dai_link) +
 ARRAY_SIZE(msm8952_madera_be_dai) +
-ARRAY_SIZE(msm8952_madera_mods_be_dai)];
+ARRAY_SIZE(msm8952_madera_mods_be_dai) +
+ARRAY_SIZE(msm8952_hdmi_dba_dai_link)];
 #else
 int msm8952_init_wsa_dev(struct platform_device *pdev,
 			struct snd_soc_card *card)
@@ -1911,7 +1910,6 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	}
 #endif
 
-#ifndef CONFIG_SND_SOC_MADERA
 	if (of_property_read_bool(dev->of_node, "qcom,hdmi-dba-codec-rx")) {
 		dev_dbg(dev, "%s(): hdmi dba audio support present\n",
 				__func__);
@@ -1932,7 +1930,6 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			sizeof(msm8952_tdm_be_dai_link));
 		len5 += ARRAY_SIZE(msm8952_tdm_be_dai_link);
 	}
-#endif
 	card->dai_link = msm8952_dai_links;
 	card->num_links = len5;
 	card->dev = dev;
