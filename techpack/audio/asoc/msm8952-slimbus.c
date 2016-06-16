@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -35,6 +36,7 @@
 #ifdef CONFIG_SND_SOC_MADERA
 #include <sound/soc/codecs/madera.h>
 #include <linux/mfd/madera/registers.h>
+#include <sound/soc/codecs/cs35l34.h>
 #else
 #include "codecs/wsa881x.h"
 #endif
@@ -3613,6 +3615,13 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	snd_soc_dapm_sync(dapm);
+
+	/* Disable the MCLK */
+	snd_soc_update_bits(codec, MADERA_SYSTEM_CLOCK_1,
+		1 << MADERA_SYSCLK_ENA_SHIFT, 0);
+	snd_soc_update_bits(codec, MADERA_OUTPUT_SYSTEM_CLOCK,
+		1 << MADERA_OPCLK_ENA_SHIFT, 0);
+
 	return 0;
 }
 
@@ -3623,6 +3632,7 @@ int madera_cs35l34_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_dai *aif1_dai = rtd->cpu_dai;
 	struct snd_soc_dai *cs35l34_dai = rtd->codec_dai;
+	struct snd_soc_codec *codec_madera = rtd->cpu_dai->codec;
 
 	ret = snd_soc_dai_set_sysclk(aif1_dai, MADERA_CLK_SYSCLK_1, 0, 0);
 	if (ret != 0) {
@@ -3634,7 +3644,33 @@ int madera_cs35l34_dai_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(codec->dev, "Failed to set SYSCLK %d\n", ret);
 		return ret;
 	}
+	ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
+			MADERA_FLL_SRC_NONE,
+			0, 0);
+	ret = snd_soc_codec_set_pll(codec_madera, MADERA_FLL1_REFCLK,
+		MADERA_FLL_SRC_MCLK2,
+		32768, MADERA_SYSCLK_RATE);
+	ret = snd_soc_codec_set_sysclk(codec_madera, MADERA_CLK_SYSCLK_1,
+		MADERA_CLK_SRC_FLL1, MADERA_SYSCLK_RATE,
+		SND_SOC_CLOCK_IN);
+
+	ret = snd_soc_codec_set_sysclk(codec_madera, MADERA_CLK_OPCLK,
+		0, CS35L34_MCLK_RATE,
+		SND_SOC_CLOCK_OUT);
 	snd_soc_dapm_ignore_suspend(dapm, "AMP Playback");
+
+	/* Startup MCLK to initailize the cs35l34 */
+	snd_soc_update_bits(codec_madera, MADERA_SYSTEM_CLOCK_1,
+		1 << MADERA_SYSCLK_ENA_SHIFT, 1 << MADERA_SYSCLK_ENA_SHIFT);
+	snd_soc_update_bits(codec_madera, MADERA_OUTPUT_SYSTEM_CLOCK,
+		1 << MADERA_OPCLK_ENA_SHIFT, 1 << MADERA_OPCLK_ENA_SHIFT);
+
+	usleep_range(1000, 1001);
+	snd_soc_update_bits(codec, CS35L34_PWRCTL1,
+		CS35L34_PDN_ALL, CS35L34_PDN_ALL);
+	/* Wait 45ms for the interrupt pin to go low */
+	msleep(45);
+
 	return 0;
 }
 #endif
