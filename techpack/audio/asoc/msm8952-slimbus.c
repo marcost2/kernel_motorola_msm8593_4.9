@@ -3821,6 +3821,9 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dapm_sync(dapm);
 
+	snd_soc_dapm_force_enable_pin(dapm, "SYSCLK");
+	snd_soc_dapm_sync(dapm);
+
 	/* Disable the MCLK */
 	snd_soc_update_bits(codec, MADERA_SYSTEM_CLOCK_1,
 		1 << MADERA_SYSCLK_ENA_SHIFT, 0);
