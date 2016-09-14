@@ -592,6 +592,10 @@ config SND_SOC_MADERA
 	default m if SND_SOC_CS47L90=m
 	default m if SND_SOC_CS47L92=m
 
+config SND_SOC_MADERA_SLIMBUS
+	tristate
+	depends on SLIMBUS
+
 config SND_SOC_MAX98088
        tristate
 
