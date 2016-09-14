@@ -88,6 +88,8 @@
 #define FLL_RATE_MADERA 294912000
 #define MADERA_SYSCLK_RATE (FLL_RATE_MADERA / 3)
 #define MADERA_DSPCLK_RATE (FLL_RATE_MADERA / 2)
+#define CS47L35_SLIM_RX_MAX	6
+#define CS47L35_SLIM_TX_MAX	6
 #define CS35L34_MCLK_RATE 6144000
 #define CS35L35_MCLK_RATE 12288000
 #define CS35L35_SCLK_RATE 1536000
@@ -4051,6 +4053,11 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_card *card = codec->component.card;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	unsigned int rx_ch[CS47L35_SLIM_RX_MAX] = {144, 145, 146, 147, 148,
+							149};
+	unsigned int tx_ch[CS47L35_SLIM_TX_MAX] = {128, 129, 130, 131, 132,
+							133};
 
 	ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
 			MADERA_FLL_SRC_NONE,
@@ -4150,6 +4157,13 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 		ARRAY_SIZE(msm_snd_controls));
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to add kcontrols %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_channel_map(codec_dai, ARRAY_SIZE(tx_ch),
+		tx_ch, ARRAY_SIZE(rx_ch), rx_ch);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to setup slimbus ports %d\n", ret);
 		return ret;
 	}
 
