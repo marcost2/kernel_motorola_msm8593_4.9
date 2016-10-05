@@ -445,9 +445,27 @@ static struct snd_soc_dai_link msm8952_madera_l34_dai_link[] = {
 	}
 };
 
+static struct snd_soc_dai_link msm8952_madera_l35_dai_link[] = {
+	{
+		.name = "MADERA-AMP",
+		.stream_name = "MADERA-AMP Playback",
+		.cpu_name = "cs47l35-codec",
+		.cpu_dai_name = "cs47l35-aif2",
+		.codec_name = "cs47l35.2-0040",
+		.codec_dai_name = "cs35l35-pcm",
+		.init = madera_cs35l35_dai_init,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		SND_SOC_DAIFMT_CBS_CFS,
+		.no_pcm = 1,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.params = &cs35l34_params,
+	}
+};
+
 static struct snd_soc_dai_link msm8952_madera_mods_be_dai[] = {
 	{
-		/*mods I2S in and out*/
+		/* mods I2S in and out */
 		.name = LPASS_BE_QUAT_MI2S_RX,
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
@@ -1488,7 +1506,6 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
 	},
-
 	{
 		.name = LPASS_BE_QUIN_MI2S_TX,
 		.stream_name = "Quinary MI2S Capture",
@@ -1652,11 +1669,13 @@ static struct snd_soc_dai_link msm8952_madera_dai_links[
 ARRAY_SIZE(msm8952_common_fe_dai) +
 ARRAY_SIZE(msm8952_madera_fe_dai) +
 ARRAY_SIZE(msm8952_common_be_dai) +
-ARRAY_SIZE(msm8952_madera_l34_dai_link) +
 ARRAY_SIZE(msm8952_madera_be_dai) +
 ARRAY_SIZE(msm8952_madera_mods_be_dai) +
-ARRAY_SIZE(msm8952_hdmi_dba_dai_link)];
-#else
+ARRAY_SIZE(msm8952_hdmi_dba_dai_link) +
+ARRAY_SIZE(msm8952_madera_l34_dai_link) +
+ARRAY_SIZE(msm8952_madera_l35_dai_link)];
+#endif
+#ifndef CONFIG_SND_SOC_MADERA
 int msm8952_init_wsa_dev(struct platform_device *pdev,
 			struct snd_soc_card *card)
 {
@@ -1847,7 +1866,7 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	struct snd_soc_dai_link *msm8952_dai_links = NULL;
 	int num_links, ret, len1, len2, len3, len4, len5 = 0;
 #ifdef CONFIG_SND_SOC_MADERA
-	int len_2a, len_2b = 0;
+	int len_2a, len_2b, is_amp_tommy = 0;
 #endif
 	enum codec_variant codec_ver = 0;
 	const char *tasha_lite[NUM_OF_TASHA_LITE_DEVICE] = {
@@ -1895,10 +1914,17 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	}
 #ifdef CONFIG_SND_SOC_MADERA
 	else if (!strcmp(card->name, "msm8952-madera-snd-card")) {
+		if (of_property_read_bool(dev->of_node, "qcom,albus-audio"))
+			is_amp_tommy = 1;
 		len1 = ARRAY_SIZE(msm8952_common_fe_dai);
 		len2 = len1 + ARRAY_SIZE(msm8952_madera_fe_dai);
 		len_2a = len2 + ARRAY_SIZE(msm8952_common_be_dai);
-		len_2b  = len_2a + ARRAY_SIZE(msm8952_madera_l34_dai_link);
+		if (is_amp_tommy)
+			len_2b = len_2a +
+				ARRAY_SIZE(msm8952_madera_l35_dai_link);
+		else
+			len_2b = len_2a +
+				ARRAY_SIZE(msm8952_madera_l34_dai_link);
 		len3 = len_2b + ARRAY_SIZE(msm8952_madera_be_dai);
 		snd_soc_card_msm_card.name = card->name;
 		card = &snd_soc_card_msm_card;
@@ -1909,16 +1935,24 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			msm8952_madera_fe_dai, sizeof(msm8952_madera_fe_dai));
 		memcpy(msm8952_madera_dai_links + len2,
 			msm8952_common_be_dai, sizeof(msm8952_common_be_dai));
-		memcpy(msm8952_madera_dai_links + len_2a,
-			msm8952_madera_l34_dai_link,
-			sizeof(msm8952_madera_l34_dai_link));
 		memcpy(msm8952_madera_dai_links + len_2b,
 			msm8952_madera_be_dai, sizeof(msm8952_madera_be_dai));
-		memcpy(msm8952_madera_dai_links + len3,
-			msm8952_madera_mods_be_dai,
-			sizeof(msm8952_madera_mods_be_dai));
 		msm8952_dai_links = msm8952_madera_dai_links;
-		len4 = len3 + ARRAY_SIZE(msm8952_madera_mods_be_dai);
+		if (is_amp_tommy) {
+			memcpy(msm8952_madera_dai_links + len_2a,
+				msm8952_madera_l35_dai_link,
+				sizeof(msm8952_madera_l35_dai_link));
+			/* Add the codec-codec link to mod here */
+			len4 = len3;
+		} else {
+			memcpy(msm8952_madera_dai_links + len_2a,
+				msm8952_madera_l34_dai_link,
+				sizeof(msm8952_madera_l34_dai_link));
+			memcpy(msm8952_madera_dai_links + len3,
+				msm8952_madera_mods_be_dai,
+				sizeof(msm8952_madera_mods_be_dai));
+			len4 = len3 + ARRAY_SIZE(msm8952_madera_mods_be_dai);
+		}
 	}
 #endif
 
@@ -1928,6 +1962,7 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 		memcpy(msm8952_dai_links + len5, msm8952_hdmi_dba_dai_link,
 			sizeof(msm8952_hdmi_dba_dai_link));
 		len5 += ARRAY_SIZE(msm8952_hdmi_dba_dai_link);
+
 	} else {
 		dev_dbg(dev, "%s(): No hdmi dba present, add quin dai\n",
 				__func__);
