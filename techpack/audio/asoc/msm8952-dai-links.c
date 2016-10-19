@@ -450,7 +450,7 @@ static struct snd_soc_dai_link msm8952_madera_l35_dai_link[] = {
 		.name = "MADERA-AMP",
 		.stream_name = "MADERA-AMP Playback",
 		.cpu_name = "cs47l35-codec",
-		.cpu_dai_name = "cs47l35-aif2",
+		.cpu_dai_name = "cs47l35-aif1",
 		.codec_name = "cs47l35.2-0040",
 		.codec_dai_name = "cs35l35-pcm",
 		.init = madera_cs35l35_dai_init,
@@ -1867,6 +1867,7 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	int num_links, ret, len1, len2, len3, len4, len5 = 0;
 #ifdef CONFIG_SND_SOC_MADERA
 	int len_2a, len_2b, is_amp_tommy = 0;
+	const char *l35_cpu_dai_name;
 #endif
 	enum codec_variant codec_ver = 0;
 	const char *tasha_lite[NUM_OF_TASHA_LITE_DEVICE] = {
@@ -1939,6 +1940,11 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			msm8952_madera_be_dai, sizeof(msm8952_madera_be_dai));
 		msm8952_dai_links = msm8952_madera_dai_links;
 		if (is_amp_tommy) {
+			ret = of_property_read_string(dev->of_node,
+				"qcom,l35_cpu_dai_name", &l35_cpu_dai_name);
+			if (ret == 0)
+				msm8952_madera_l35_dai_link[0].cpu_dai_name =
+					l35_cpu_dai_name;
 			memcpy(msm8952_madera_dai_links + len_2a,
 				msm8952_madera_l35_dai_link,
 				sizeof(msm8952_madera_l35_dai_link));
