@@ -1914,7 +1914,7 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 		msm8952_dai_links = msm8952_tasha_dai_links;
 	}
 #ifdef CONFIG_SND_SOC_MADERA
-	else if (!strncmp(card->name, "msm8952-madera-snd-card", 19)) {
+	else if (!strncmp(card->name, "msm8952-madera-snd-card", 23)) {
 		if (of_property_read_bool(dev->of_node, "qcom,albus-audio"))
 			is_amp_tommy = 1;
 		len1 = ARRAY_SIZE(msm8952_common_fe_dai);

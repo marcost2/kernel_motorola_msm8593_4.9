@@ -3519,8 +3519,6 @@ static struct snd_soc_dapm_route madera_audio_routes[] = {
 	{"Slim2 Playback", NULL, "MCLK"},
 	{"Slim2 Capture", NULL, "MCLK"},
 
-	/* MICBIAS ? */
-
 	{"AIF1 Playback", NULL, "AMP Capture"},
 	{"AMP Playback", NULL, "OPCLK"},
 	{"AMP Capture", NULL, "OPCLK"},
@@ -3529,10 +3527,29 @@ static struct snd_soc_dapm_route madera_audio_routes[] = {
 	{"Slim1 Capture", NULL, "MCLK"},
 	{"Slim2 Capture", NULL, "MCLK"},
 
-	{"IN1AL", NULL, "MICBIAS1A"},
-	{"IN1AR", NULL, "MICBIAS1B"},
-	{"IN2L", NULL, "MICBIAS2B"},
+};
+
+static struct snd_soc_dapm_route madera_mic_routes[] = {
+	{"IN1AL", NULL, "MICBIAS1A"}, /* Mic 1 */
+	{"IN1AR", NULL, "MICBIAS1B"}, /* Mic 3 */
+	{"IN2L", NULL, "MICBIAS2B"},  /* Mic 2 */
 	{"IN1BR", NULL, "MICBIAS2A"}, /* Headset mic */
+};
+
+static struct snd_soc_dapm_route madera_albus_p1a_mic_routes[] = {
+	/* Rev 05 */
+	{"IN1AL", NULL, "MICBIAS1A"}, /* Mic 1 */
+	{"IN2R", NULL, "MICBIAS1B"},  /* Mic 3 */
+	{"IN2L", NULL, "MICBIAS2B"},  /* Mic 2 */
+	{"IN1BR", NULL, "MICBIAS2A"}, /* Headset mic */
+};
+
+static struct snd_soc_dapm_route madera_albus_mic_routes[] = {
+	/* Rev 06 */
+	{"IN1AL", NULL, "MICBIAS2A"}, /* Mic 1 */
+	{"IN2R", NULL, "MICBIAS2B"},  /* Mic 3 */
+	{"IN2L", NULL, "MICBIAS2A"},  /* Mic 2 */
+	{"IN1BR", NULL, "MICBIAS1B"}, /* Headset mic */
 };
 #endif
 
@@ -3726,6 +3743,7 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_card *card = codec->component.card;
 
 	ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
 			MADERA_FLL_SRC_NONE,
@@ -3770,6 +3788,26 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 		ARRAY_SIZE(madera_audio_routes));
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to add audio routes %d\n", ret);
+		return ret;
+	}
+
+	if (of_property_read_bool(card->dev->of_node, "qcom,albus-audio")) {
+		if (!strncmp(card->name, "msm8952-madera-snd-cardp1a", 26)) {
+			ret = snd_soc_dapm_add_routes(dapm,
+				madera_albus_p1a_mic_routes,
+				ARRAY_SIZE(madera_albus_p1a_mic_routes));
+		} else {
+			ret = snd_soc_dapm_add_routes(dapm,
+				madera_albus_mic_routes,
+				ARRAY_SIZE(madera_albus_mic_routes));
+		}
+	} else {
+		ret = snd_soc_dapm_add_routes(dapm,
+			madera_mic_routes,
+			ARRAY_SIZE(madera_mic_routes));
+	}
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to add mic routes %d\n", ret);
 		return ret;
 	}
 
