@@ -3439,6 +3439,13 @@ static int madera_hw_params(struct snd_pcm_substream *substream,
 
 	bclk_target = slotw * channels * params_rate(params);
 
+	/* Force width to be 16 bit if params pass 8 bit */
+	if (dataw == 8) {
+		dataw *= 2;
+		bclk_target *= 2;
+		tdm_width = dataw;
+	}
+
 	if (chan_limit && chan_limit < channels) {
 		madera_aif_dbg(dai, "Limiting to %d channels\n", chan_limit);
 		bclk_target /= channels;
