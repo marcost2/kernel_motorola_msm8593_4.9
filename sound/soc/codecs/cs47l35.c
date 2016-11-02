@@ -32,11 +32,6 @@
 #define CS47L35_NUM_ADSP	3
 #define CS47L35_MONO_OUTPUTS	1
 
-struct cs47l35 {
-	struct madera_priv core;
-	struct madera_fll fll;
-};
-
 static const struct wm_adsp_region cs47l35_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x080000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x0e0000 },
