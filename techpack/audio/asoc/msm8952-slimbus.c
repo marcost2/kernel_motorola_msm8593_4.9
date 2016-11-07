@@ -93,6 +93,10 @@
 #define CS35L34_MCLK_RATE 6144000
 #define CS35L35_MCLK_RATE 12288000
 #define CS35L35_SCLK_RATE 1536000
+static unsigned int msm_slim_rx_ch[CS47L35_SLIM_RX_MAX] = {144, 145, 146, 147,
+						148, 149};
+static unsigned int msm_slim_tx_ch[CS47L35_SLIM_TX_MAX] = {128, 129, 130, 131,
+						132, 133};
 #endif
 
 enum btsco_rates {
@@ -2599,12 +2603,15 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 
 	int ret = 0;
+#ifndef CONFIG_SND_SOC_MADERA
 	u32 rx_ch[SLIM_MAX_RX_PORTS], tx_ch[SLIM_MAX_TX_PORTS];
 	u32 rx_ch_cnt = 0, tx_ch_cnt = 0;
+#endif
 	u32 user_set_tx_ch = 0;
 	u32 rx_ch_count;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+#ifndef CONFIG_SND_SOC_MADERA
 		ret = snd_soc_dai_get_channel_map(codec_dai,
 					&tx_ch_cnt, tx_ch, &rx_ch_cnt, rx_ch);
 		if (ret < 0) {
@@ -2612,6 +2619,7 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 				__func__, ret);
 			goto end;
 		}
+#endif
 		if (dai_link->id == MSM_BACKEND_DAI_SLIMBUS_4_RX) {
 			pr_debug("%s: rx_4_ch=%d\n", __func__,
 				 msm_slim_4_rx_ch);
@@ -2629,8 +2637,13 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 					msm_slim_0_rx_ch);
 			rx_ch_count = msm_slim_0_rx_ch;
 		}
+#ifndef CONFIG_SND_SOC_MADERA
 		ret = snd_soc_dai_set_channel_map(cpu_dai, 0, 0,
 						  rx_ch_count, rx_ch);
+#else
+		ret = snd_soc_dai_set_channel_map(cpu_dai, 0, 0,
+						  rx_ch_count, msm_slim_rx_ch);
+#endif
 		if (ret < 0) {
 			pr_err("%s: failed to set cpu chan map, err:%d\n",
 				__func__, ret);
@@ -2639,6 +2652,7 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 	} else {
 		pr_debug("%s: %s_tx_dai_id_%d_ch=%d\n", __func__,
 			 codec_dai->name, codec_dai->id, user_set_tx_ch);
+#ifndef CONFIG_SND_SOC_MADERA
 		ret = snd_soc_dai_get_channel_map(codec_dai,
 					 &tx_ch_cnt, tx_ch, &rx_ch_cnt, rx_ch);
 		if (ret < 0) {
@@ -2646,6 +2660,7 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 				__func__, ret);
 			goto end;
 		}
+#endif
 		/* For <codec>_tx1 case */
 		if (dai_link->id == MSM_BACKEND_DAI_SLIMBUS_0_TX)
 			user_set_tx_ch = msm_slim_0_tx_ch;
@@ -2663,14 +2678,24 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 		else if (dai_link->id == MSM_BACKEND_DAI_SLIMBUS_4_TX)
 			user_set_tx_ch = msm_vi_feed_tx_ch;
 		else
+#ifndef CONFIG_SND_SOC_MADERA
 			user_set_tx_ch = tx_ch_cnt;
+#else
+			user_set_tx_ch = 1;
+#endif
 
-		pr_debug(
-		"%s: msm_slim_0_tx_ch(%d) user_set_tx_ch(%d) tx_ch_cnt(%d)\n",
-			__func__, msm_slim_0_tx_ch, user_set_tx_ch, tx_ch_cnt);
+		pr_debug("%s: msm_slim_0_tx_ch(%d) user_set_tx_ch(%d) be_id (%d)\n",
+			 __func__,  slim_tx_cfg[0].channels, user_set_tx_ch,
+			 dai_link->be_id);
 
+#ifndef CONFIG_SND_SOC_MADERA
 		ret = snd_soc_dai_set_channel_map(cpu_dai,
 						  user_set_tx_ch, tx_ch, 0, 0);
+#else
+		ret = snd_soc_dai_set_channel_map(cpu_dai,
+						user_set_tx_ch,
+						msm_slim_tx_ch, 0, 0);
+#endif
 		if (ret < 0) {
 			pr_err("%s: failed to set cpu chan map, err:%d\n",
 				__func__, ret);
@@ -4053,19 +4078,6 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_card *card = codec->component.card;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	unsigned int rx_ch[CS47L35_SLIM_RX_MAX] = {144, 145, 146, 147, 148,
-							149};
-	unsigned int tx_ch[CS47L35_SLIM_TX_MAX] = {128, 129, 130, 131, 132,
-							133};
-
-	ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
-			MADERA_FLL_SRC_NONE,
-			0, 0);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set FLL1REFCLK %d\n", ret);
-		return ret;
-	}
 
 	ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
 			MADERA_FLL_SRC_MCLK2,
@@ -4157,13 +4169,6 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 		ARRAY_SIZE(msm_snd_controls));
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to add kcontrols %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dai_set_channel_map(codec_dai, ARRAY_SIZE(tx_ch),
-		tx_ch, ARRAY_SIZE(rx_ch), rx_ch);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to setup slimbus ports %d\n", ret);
 		return ret;
 	}
 
