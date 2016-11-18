@@ -3742,29 +3742,6 @@ static struct snd_soc_dapm_route madera_audio_routes[] = {
 	{"Slim2 Capture", NULL, "MCLK"},
 
 };
-
-static struct snd_soc_dapm_route madera_mic_routes[] = {
-	{"IN1AL", NULL, "MICBIAS1A"}, /* Mic 1 */
-	{"IN1AR", NULL, "MICBIAS1B"}, /* Mic 3 */
-	{"IN2L", NULL, "MICBIAS2B"},  /* Mic 2 */
-	{"IN1BR", NULL, "MICBIAS2A"}, /* Headset mic */
-};
-
-static struct snd_soc_dapm_route madera_albus_p1a_mic_routes[] = {
-	/* Rev 05 */
-	{"IN1AL", NULL, "MICBIAS1A"}, /* Mic 1 */
-	{"IN2R", NULL, "MICBIAS1B"},  /* Mic 3 */
-	{"IN2L", NULL, "MICBIAS2B"},  /* Mic 2 */
-	{"IN1BR", NULL, "MICBIAS2A"}, /* Headset mic */
-};
-
-static struct snd_soc_dapm_route madera_albus_mic_routes[] = {
-	/* Rev 06 */
-	{"IN1AL", NULL, "MICBIAS2A"}, /* Mic 1 */
-	{"IN2R", NULL, "MICBIAS2B"},  /* Mic 3 */
-	{"IN2L", NULL, "MICBIAS2A"},  /* Mic 2 */
-	{"IN1BR", NULL, "MICBIAS1B"}, /* Headset mic */
-};
 #endif
 
 int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
@@ -4016,25 +3993,6 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 
 	albus_audio = of_property_read_bool(card->dev->of_node,
 					    "qcom,albus-audio");
-	if (albus_audio) {
-		if (!strncmp(card->name, "msm8952-madera-snd-cardp1a", 26)) {
-			ret = snd_soc_dapm_add_routes(dapm,
-				madera_albus_p1a_mic_routes,
-				ARRAY_SIZE(madera_albus_p1a_mic_routes));
-		} else {
-			ret = snd_soc_dapm_add_routes(dapm,
-				madera_albus_mic_routes,
-				ARRAY_SIZE(madera_albus_mic_routes));
-		}
-	} else {
-		ret = snd_soc_dapm_add_routes(dapm,
-			madera_mic_routes,
-			ARRAY_SIZE(madera_mic_routes));
-	}
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to add mic routes %d\n", ret);
-		return ret;
-	}
 
 	/* Ensures that GPIO3 is set to an output clock. */
 	snd_soc_write(codec, 0x1704, 0);
@@ -4495,10 +4453,21 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, pdata);
 
+#ifndef CONFIG_SND_SOC_MADERA
 	ret = snd_soc_of_parse_audio_routing(card,
 			"qcom,audio-routing");
 	if (ret)
 		goto err;
+#endif
+
+#ifdef CONFIG_SND_SOC_MADERA
+	ret = snd_soc_of_parse_audio_routing(card, "cs47l35,dapm-routing");
+	if (ret) {
+		dev_err(&pdev->dev, "parse dapm-routing failed, err:%d\n",
+			ret);
+		goto err;
+	}
+#endif
 	ret = msm8952_populate_dai_link_component_of_node(card);
 	if (ret) {
 		ret = -EPROBE_DEFER;
