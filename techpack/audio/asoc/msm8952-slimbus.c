@@ -2641,15 +2641,6 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_set_channel_map(cpu_dai, 0, 0,
 						  rx_ch_count, rx_ch);
 #else
-		ret = snd_soc_dai_set_channel_map(cpu_dai, 0, 0,
-						  rx_ch_count, msm_slim_rx_ch);
-#endif
-		if (ret < 0) {
-			pr_err("%s: failed to set cpu chan map, err:%d\n",
-				__func__, ret);
-			goto end;
-		}
-#ifdef CONFIG_SND_SOC_MADERA
 		ret = snd_soc_dai_set_channel_map(codec_dai, 0, 0,
 						  rx_ch_count, msm_slim_rx_ch);
 		if (ret < 0) {
@@ -2657,7 +2648,14 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 				__func__, ret);
 			goto err_ch_map;
 		}
+		ret = snd_soc_dai_set_channel_map(cpu_dai, 0, 0,
+						  rx_ch_count, msm_slim_rx_ch);
 #endif
+		if (ret < 0) {
+			pr_err("%s: failed to set cpu chan map, err:%d\n",
+				__func__, ret);
+			goto err_ch_map;
+		}
 	} else {
 		pr_debug("%s: %s_tx_dai_id_%d_ch=%d\n", __func__,
 			 codec_dai->name, codec_dai->id, user_set_tx_ch);
@@ -2701,23 +2699,19 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_set_channel_map(cpu_dai,
 						  user_set_tx_ch, tx_ch, 0, 0);
 #else
-		ret = snd_soc_dai_set_channel_map(cpu_dai,
-						user_set_tx_ch,
-						msm_slim_tx_ch, 0, 0);
-#endif
-		if (ret < 0) {
-			pr_err("%s: failed to set cpu chan map, err:%d\n",
-				__func__, ret);
-			goto end;
-		}
-#ifdef CONFIG_SND_SOC_MADERA
 		ret = snd_soc_dai_set_channel_map(codec_dai,
 				user_set_tx_ch,
 				msm_slim_tx_ch, 0, 0);
 		if (ret < 0)
 			pr_err("%s: failed to set codec chan map, err:%d\n",
 				__func__, ret);
+		ret = snd_soc_dai_set_channel_map(cpu_dai,
+						user_set_tx_ch,
+						msm_slim_tx_ch, 0, 0);
 #endif
+		if (ret < 0)
+			pr_err("%s: failed to set cpu chan map, err:%d\n",
+				__func__, ret);
 	}
 end:
 	return ret;
