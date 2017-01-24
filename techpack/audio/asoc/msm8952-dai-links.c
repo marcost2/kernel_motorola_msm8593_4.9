@@ -420,7 +420,7 @@ static struct snd_soc_dai_link msm8952_tasha_be_dai[] = {
 
 #ifdef CONFIG_SND_SOC_MADERA
 static const struct snd_soc_pcm_stream cs35l34_params = {
-	.formats = SNDRV_PCM_FORMAT_S16_LE,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.rate_min = 48000,
 	.rate_max = 48000,
 	.channels_min = 1,
@@ -1462,7 +1462,7 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.codec_dai_name = "msm-stub-rx",
 		.no_pcm = 1,
 		.dpcm_playback = 1,
-		.be_id = MSM_BACKEND_DAI_INT_FM_RX,
+		.id = MSM_BACKEND_DAI_INT_FM_RX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		/* this dainlink has playback support */
 		.ignore_pmdown_time = 1,
@@ -1477,7 +1477,7 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.codec_dai_name = "msm-stub-tx",
 		.no_pcm = 1,
 		.dpcm_capture = 1,
-		.be_id = MSM_BACKEND_DAI_INT_FM_TX,
+		.id = MSM_BACKEND_DAI_INT_FM_TX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ignore_suspend = 1,
 	},
@@ -1627,6 +1627,31 @@ static struct snd_soc_dai_link msm8952_hdmi_dba_dai_link[] = {
 		.ops = &msm8952_quin_mi2s_be_ops,
 		.ignore_pmdown_time = 1, /* dai link has playback support */
 		.ignore_suspend = 1,
+	},
+};
+
+static const struct snd_soc_pcm_stream hdmi_dba_params = {
+	.formats = SNDRV_PCM_FMTBIT_S24_LE,
+	.rate_min = 48000,
+	.rate_max = 48000,
+	.channels_min = 1,
+	.channels_max = 2,
+};
+
+static struct snd_soc_dai_link msm8952_albus_hdmi_dba_dai_link[] = {
+	{
+		.name = "MADERA-HDMI",
+		.stream_name = "MADERA-HDMI DBA Playback",
+		.cpu_name = "cs47l35-codec",
+		.cpu_dai_name = "cs47l35-aif2", /* AIF2 on Rev 6 and beyond */
+		.codec_name = "msm-hdmi-dba-codec-rx",
+		.codec_dai_name = "msm_hdmi_dba_codec_rx_dai",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBS_CFS,
+		.no_pcm = 1,      /* has a backend */
+		.ignore_pmdown_time = 1,
+		.ignore_suspend = 1,
+		.params = &hdmi_dba_params,
 	},
 };
 
@@ -1927,7 +1952,8 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 {
 	struct snd_soc_card *card = &snd_soc_card_msm_card;
 	struct snd_soc_dai_link *msm8952_dai_links = NULL;
-	int num_links, ret, len1, len2, len3, len4, len5 = 0, is_amp_tommy = 0;
+	int num_links, ret, len1, len2, len3, len4, len5 = 0;
+	bool albus_hw = false;
 #ifdef CONFIG_SND_SOC_MADERA
 	int len_2a, len_2b;
 	const char *l35_cpu_dai_name;
@@ -1979,11 +2005,11 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 #ifdef CONFIG_SND_SOC_MADERA
 	else if (!strncmp(card->name, "msm8952-madera-snd-card", 23)) {
 		if (of_property_read_bool(dev->of_node, "qcom,albus-audio"))
-			is_amp_tommy = 1;
+			albus_hw = true;
 		len1 = ARRAY_SIZE(msm8952_common_fe_dai);
 		len2 = len1 + ARRAY_SIZE(msm8952_madera_fe_dai);
 		len_2a = len2 + ARRAY_SIZE(msm8952_common_be_dai);
-		if (is_amp_tommy)
+		if (albus_hw)
 			len_2b = len_2a +
 				ARRAY_SIZE(msm8952_madera_l35_dai_link);
 		else
@@ -2002,7 +2028,7 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 		memcpy(msm8952_madera_dai_links + len_2b,
 			msm8952_madera_be_dai, sizeof(msm8952_madera_be_dai));
 		msm8952_dai_links = msm8952_madera_dai_links;
-		if (is_amp_tommy) {
+		if (albus_hw) {
 			ret = of_property_read_string(dev->of_node,
 				"qcom,l35_cpu_dai_name", &l35_cpu_dai_name);
 			if (ret == 0)
@@ -2028,15 +2054,30 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 #endif
 
 	if (of_property_read_bool(dev->of_node, "qcom,hdmi-dba-codec-rx")) {
-		dev_dbg(dev, "%s(): hdmi dba audio support present\n",
+		if (!albus_hw) {
+			dev_dbg(dev, "%s(): hdmi dba audio present\n",
 				__func__);
-		memcpy(msm8952_dai_links + len5, msm8952_hdmi_dba_dai_link,
-			sizeof(msm8952_hdmi_dba_dai_link));
-		len5 += ARRAY_SIZE(msm8952_hdmi_dba_dai_link);
-
+			memcpy(msm8952_dai_links + len5,
+			       msm8952_hdmi_dba_dai_link,
+			       sizeof(msm8952_hdmi_dba_dai_link));
+			len5 += ARRAY_SIZE(msm8952_hdmi_dba_dai_link);
+		} else {
+			const char *dba_cpu_dai_name;
+			dev_dbg(dev, "%s(): albus hdmi dba audio present\n",
+				__func__);
+			ret = of_property_read_string(dev->of_node,
+				"qcom,dba_cpu_dai_name", &dba_cpu_dai_name);
+			if (ret == 0)
+				msm8952_albus_hdmi_dba_dai_link[0].cpu_dai_name =
+					dba_cpu_dai_name;
+			memcpy(msm8952_dai_links + len5,
+			       msm8952_albus_hdmi_dba_dai_link,
+			       sizeof(msm8952_albus_hdmi_dba_dai_link));
+			len5 += ARRAY_SIZE(msm8952_albus_hdmi_dba_dai_link);
+		}
 	} else {
-		if (!is_amp_tommy) {
-			dev_dbg(dev, "%s(): No hdmi dba present, add quin dai\n",
+		if (!albus_hw) {
+			dev_dbg(dev, "%s(): No hdmi dba. Add quin dai\n",
 				__func__);
 			memcpy(msm8952_dai_links + len5, msm8952_quin_dai_link,
 				sizeof(msm8952_quin_dai_link));
