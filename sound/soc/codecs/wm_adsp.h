@@ -100,7 +100,8 @@ struct wm_adsp {
 	char *wmfw_file_name;
 	char *bin_file_name;
 #endif
-
+	const char *wmfw_file;
+	const char *bin_file;
 };
 
 #define WM_ADSP1(wname, num) \
