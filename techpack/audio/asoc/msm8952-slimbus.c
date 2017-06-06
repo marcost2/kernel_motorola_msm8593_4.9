@@ -3451,12 +3451,12 @@ int msm_quin_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 #ifdef CONFIG_MODS_MODBUS_EXT
 	struct modbus_ext_status modbus_status;
+	bool albus_audio = of_property_read_bool(card->dev->of_node,
+					    "qcom,albus-audio");
 #endif
 	struct msm8952_asoc_mach_data *pdata =
 			snd_soc_card_get_drvdata(card);
 	int ret = 0, val = 0;
-	bool albus_audio = of_property_read_bool(card->dev->of_node,
-					    "qcom,albus-audio");
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 		 substream->name, substream->stream);
@@ -3520,10 +3520,11 @@ void msm_quin_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_card *card = rtd->card;
 #ifdef CONFIG_MODS_MODBUS_EXT
 	struct modbus_ext_status modbus_status;
-#endif
-	struct msm8952_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	bool albus_audio = of_property_read_bool(card->dev->of_node,
 					    "qcom,albus-audio");
+#endif
+	struct msm8952_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 		 substream->name, substream->stream);
@@ -4133,8 +4134,6 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(dapm, "HPOUTR");
 	snd_soc_dapm_ignore_suspend(dapm, "SPKOUTN");
 	snd_soc_dapm_ignore_suspend(dapm, "SPKOUTP");
-	snd_soc_dapm_ignore_suspend(dapm, "SPKDATL");
-	snd_soc_dapm_ignore_suspend(dapm, "SPKDATR");
 	snd_soc_dapm_ignore_suspend(dapm, "DSP2 Virtual Output");
 	snd_soc_dapm_ignore_suspend(dapm, "DSP3 Virtual Output");
 	snd_soc_dapm_ignore_suspend(dapm, "DSP Virtual Input");
