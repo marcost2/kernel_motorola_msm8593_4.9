@@ -19,14 +19,9 @@
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/wakelock.h>
 #include <linux/notifier.h>
-
-#define RESET_LOW_SLEEP_MIN_US 5000
-#define RESET_LOW_SLEEP_MAX_US (RESET_LOW_SLEEP_MIN_US + 100)
-#define RESET_HIGH_SLEEP1_MIN_US 100
-#define RESET_HIGH_SLEEP1_MAX_US (RESET_HIGH_SLEEP1_MIN_US + 100)
-#define RESET_HIGH_SLEEP2_MIN_US 5000
-#define RESET_HIGH_SLEEP2_MAX_US (RESET_HIGH_SLEEP2_MIN_US + 100)
+#include <linux/fb.h>
 
 struct FPS_data {
 	unsigned int enabled;
@@ -118,61 +113,38 @@ void FPS_notify(unsigned long stype, int state)
 
 struct fpc1020_data {
 	struct device *dev;
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-	struct device *class_dev;
-#endif
 	struct platform_device *pdev;
+	struct wake_lock wlock;
 	struct notifier_block nb;
 	int irq_gpio;
 	int irq_num;
 	unsigned int irq_cnt;
-	int rst_gpio;
+	struct mutex lock;
+	struct notifier_block fb_notifier;
+	bool fb_black;
+	bool proximity_state;
 };
 
-static int hw_reset(struct fpc1020_data *fpc1020)
+static void config_irq(struct fpc1020_data *fpc1020, bool enabled)
 {
-	int irq_gpio;
-	struct device *dev = fpc1020->dev;
-	int rc = 0;
+	static bool irq_enabled = true;
 
-	if (!gpio_is_valid(fpc1020->rst_gpio)) {
-		dev_warn(dev, "reset pin is invalid\n");
-		goto exit;
+	mutex_lock(&fpc1020->lock);
+	if (enabled != irq_enabled) {
+		if (enabled)
+			enable_irq(gpio_to_irq(fpc1020->irq_gpio));
+		else
+			disable_irq(gpio_to_irq(fpc1020->irq_gpio));
+
+		dev_info(fpc1020->dev, "%s: %s fpc irq ---\n", __func__,
+			 enabled ? "enable" : "disable");
+		irq_enabled = enabled;
+	} else {
+		dev_info(fpc1020->dev, "%s: dual config irq status: %s\n", __func__,
+			 enabled ? "true" : "false");
 	}
-
-	rc = gpio_direction_output(fpc1020->rst_gpio, 1);
-	if (rc)
-		goto exit;
-	usleep_range(RESET_HIGH_SLEEP1_MIN_US, RESET_HIGH_SLEEP1_MAX_US);
-
-	rc = gpio_direction_output(fpc1020->rst_gpio, 0);
-	if (rc)
-		goto exit;
-	usleep_range(RESET_LOW_SLEEP_MIN_US, RESET_LOW_SLEEP_MAX_US);
-
-	rc = gpio_direction_output(fpc1020->rst_gpio, 1);
-	if (rc)
-		goto exit;
-	usleep_range(RESET_HIGH_SLEEP2_MIN_US, RESET_HIGH_SLEEP2_MAX_US);
-
-	irq_gpio = gpio_get_value(fpc1020->irq_gpio);
-	dev_info(dev, "IRQ after reset %d\n", irq_gpio);
-
-exit:
-	return rc;
+	mutex_unlock(&fpc1020->lock);
 }
-
-static ssize_t hw_reset_set(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	int rc;
-	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
-
-	rc = hw_reset(fpc1020);
-
-	return rc ? rc : count;
-}
-static DEVICE_ATTR(hw_reset, S_IWUSR, NULL, hw_reset_set);
 
 static ssize_t dev_enable_set(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -208,32 +180,37 @@ static ssize_t irq_cnt_get(struct device *device,
 }
 static DEVICE_ATTR(irq_cnt, S_IRUSR, irq_cnt_get, NULL);
 
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-/* Attribute: vendor (RO) */
-static ssize_t vendor_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t proximity_state_set(struct device *dev,
+				struct device_attribute *attr, const char *buf, size_t count)
 {
-	return scnprintf(buf, PAGE_SIZE, "fpc");
-}
-static DEVICE_ATTR_RO(vendor);
+	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
+	int rc, val;
 
-static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
-			     char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "fpc1020");
+	rc = kstrtoint(buf, 10, &val);
+	if (rc)
+		return -EINVAL;
+
+	fpc1020->proximity_state = !!val;
+
+	if (fpc1020->fb_black) {
+		if (fpc1020->proximity_state) {
+			/* Disable IRQ when screen is off and proximity sensor is covered */
+			config_irq(fpc1020, false);
+		} else {
+			/* Enable IRQ when screen is off and proximity sensor is uncovered */
+			config_irq(fpc1020, true);
+		}
+	}
+
+	return count;
 }
-static DEVICE_ATTR_RO(modalias);
-#endif
+static DEVICE_ATTR(proximity_state, S_IWUSR, NULL, proximity_state_set);
 
 static struct attribute *attributes[] = {
 	&dev_attr_dev_enable.attr,
 	&dev_attr_irq.attr,
 	&dev_attr_irq_cnt.attr,
-	&dev_attr_hw_reset.attr,
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-	&dev_attr_vendor.attr,
-	&dev_attr_modalias.attr,
-#endif
+	&dev_attr_proximity_state.attr,
 	NULL
 };
 
@@ -241,27 +218,14 @@ static const struct attribute_group attribute_group = {
 	.attrs = attributes,
 };
 
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-static const struct attribute_group *attribute_groups[] = {
-	&attribute_group,
-	NULL
-};
-#endif
-
-#define MAX_UP_TIME (1 * MSEC_PER_SEC)
-
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 {
 	struct fpc1020_data *fpc1020 = handle;
 
-	pm_wakeup_event(fpc1020->dev, MAX_UP_TIME);
+	wake_lock_timeout(&fpc1020->wlock, msecs_to_jiffies(1000));
 	dev_dbg(fpc1020->dev, "%s\n", __func__);
 	fpc1020->irq_cnt++;
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-	sysfs_notify(&fpc1020->class_dev->kobj, NULL, dev_attr_irq.attr.name);
-#else
 	sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_irq.attr.name);
-#endif
 	return IRQ_HANDLED;
 }
 
@@ -273,10 +237,6 @@ static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
 	int rc;
 
 	*gpio = of_get_named_gpio(np, label, 0);
-	if (!gpio_is_valid(*gpio)) {
-		dev_err(dev, "gpio %s is invalid\n", label);
-		return -EINVAL;
-	}
 	rc = devm_gpio_request(dev, *gpio, label);
 	if (rc) {
 		dev_err(dev, "failed to request gpio %d\n", *gpio);
@@ -286,52 +246,51 @@ static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
 	return 0;
 }
 
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-#define MAX_INSTANCE	5
-#define MAJOR_BASE	32
-static int fpc1020_create_sysfs(struct fpc1020_data *fpc1020, bool create) {
-	struct device *dev = fpc1020->dev;
-	static struct class *fingerprint_class;
-	static dev_t dev_no;
-	int rc = 0;
+static int fpc_fb_notif_callback(struct notifier_block *nb,
+				unsigned long val, void *data)
+{
+	struct fpc1020_data *fpc1020 = container_of(nb, struct fpc1020_data,
+							fb_notifier);
+	struct fb_event *evdata = data;
+	unsigned int blank;
 
-	if (create) {
-		rc = alloc_chrdev_region(&dev_no, MAJOR_BASE, MAX_INSTANCE, "fpc");
-		if (rc < 0) {
-			dev_err(dev, "%s alloc fingerprint class device MAJOR failed.\n", __func__);
-			goto ALLOC_REGION;
-		}
-		if (!fingerprint_class) {
-			fingerprint_class = class_create(THIS_MODULE, "fingerprint");
-			if (IS_ERR(fingerprint_class)) {
-				dev_err(dev, "%s create fingerprint class failed.\n", __func__);
-				rc = PTR_ERR(fingerprint_class);
-				fingerprint_class = NULL;
-				goto CLASS_CREATE_ERR;
-			}
-		}
-		fpc1020->class_dev = device_create_with_groups(fingerprint_class, NULL,
-				MAJOR(dev_no), fpc1020, attribute_groups, "fpc1020");
-		if (IS_ERR(fpc1020->class_dev)) {
-			dev_err(dev, "%s create fingerprint class device failed.\n", __func__);
-			rc = PTR_ERR(fpc1020->class_dev);
-			fpc1020->class_dev = NULL;
-			goto DEVICE_CREATE_ERR;
-		}
+	if (!fpc1020)
 		return 0;
-	}
 
-	device_destroy(fingerprint_class, MAJOR(dev_no));
-	fpc1020->class_dev = NULL;
-DEVICE_CREATE_ERR:
-	class_destroy(fingerprint_class);
-	fingerprint_class = NULL;
-CLASS_CREATE_ERR:
-	unregister_chrdev_region(dev_no, 1);
-ALLOC_REGION:
-	return rc;
+	if (val != FB_EVENT_BLANK)
+		return 0;
+
+	pr_debug("[info] %s value = %d\n", __func__, (int)val);
+
+	if (evdata && evdata->data && val == FB_EVENT_BLANK) {
+		blank = *(int *)(evdata->data);
+		switch (blank) {
+		case FB_BLANK_POWERDOWN:
+			fpc1020->fb_black = true;
+			/*
+			 * Disable IRQ when screen turns off,
+			 * if proximity sensor is covered
+			 */
+			if (fpc1020->proximity_state)
+				config_irq(fpc1020, false);
+			break;
+		case FB_BLANK_UNBLANK:
+		case FB_BLANK_NORMAL:
+			fpc1020->fb_black = false;
+			/* Unconditionally enable IRQ when screen turns on */
+			config_irq(fpc1020, true);
+			break;
+		default:
+			pr_debug("%s default\n", __func__);
+			break;
+		}
+	}
+	return NOTIFY_OK;
 }
-#endif
+
+static struct notifier_block fpc_notif_block = {
+	.notifier_call = fpc_fb_notif_callback,
+};
 
 static int fpc1020_probe(struct platform_device *pdev)
 {
@@ -364,33 +323,8 @@ static int fpc1020_probe(struct platform_device *pdev)
 	if (rc)
 		goto exit;
 
-	rc = fpc1020_request_named_gpio(fpc1020, "rst",
-			&fpc1020->rst_gpio);
-	if (rc)
-		fpc1020->rst_gpio = -EINVAL;
-
-	if (gpio_is_valid(fpc1020->rst_gpio)) {
-		usleep_range(RESET_LOW_SLEEP_MIN_US, RESET_LOW_SLEEP_MAX_US);
-		rc = gpio_direction_output(fpc1020->rst_gpio, 1);
-		if (rc) {
-			dev_err(dev, "cannot set reset pin direction\n");
-			goto exit;
-		}
-	}
-
-	rc = device_init_wakeup(fpc1020->dev, true);
-	if (rc)
-		goto exit;
-
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-	rc = fpc1020_create_sysfs(fpc1020, true);
-#else
-	rc = sysfs_create_group(&dev->kobj, &attribute_group);
-#endif
-	if (rc) {
-		dev_err(dev, "could not create sysfs\n");
-		goto exit;
-	}
+	mutex_init(&fpc1020->lock);
+	wake_lock_init(&fpc1020->wlock, WAKE_LOCK_SUSPEND, "fpc1020");
 
 	fpc1020->irq_cnt = 0;
 	irqf = IRQF_TRIGGER_RISING | IRQF_ONESHOT;
@@ -401,23 +335,24 @@ static int fpc1020_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(dev, "could not request irq %d\n",
 				gpio_to_irq(fpc1020->irq_gpio));
-		goto irq_exit;
+		goto exit;
 	}
 	dev_dbg(dev, "requested irq %d\n", gpio_to_irq(fpc1020->irq_gpio));
 
 	/* Request that the interrupt should be wakeable */
 	enable_irq_wake(gpio_to_irq(fpc1020->irq_gpio));
 
+
+	rc = sysfs_create_group(&dev->kobj, &attribute_group);
+	if (rc) {
+		dev_err(dev, "could not create sysfs\n");
+		goto exit;
+	}
+
 	dev_info(dev, "%s: ok\n", __func__);
-
-	return 0;
-
-irq_exit:
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-	fpc1020_create_sysfs(fpc1020, false);
-#else
-	sysfs_remove_group(&pdev->dev.kobj, &attribute_group);
-#endif
+	fpc1020->fb_black = false;
+	fpc1020->fb_notifier = fpc_notif_block;
+	fb_register_client(&fpc1020->fb_notifier);
 exit:
 	return rc;
 }
@@ -426,17 +361,10 @@ static int fpc1020_remove(struct platform_device *pdev)
 {
 	struct  fpc1020_data *fpc1020 = dev_get_drvdata(&pdev->dev);
 
-#ifdef CONFIG_INPUT_MISC_FPC1020_SAVE_TO_CLASS_DEVICE
-	fpc1020_create_sysfs(fpc1020, false);
-#else
 	sysfs_remove_group(&pdev->dev.kobj, &attribute_group);
-#endif
 
-	device_init_wakeup(fpc1020->dev, false);
-	devm_free_irq(fpc1020->dev,gpio_to_irq(fpc1020->irq_gpio),fpc1020);
-	if (gpio_is_valid(fpc1020->irq_gpio)) {
-		gpio_free(fpc1020->irq_gpio);
-	}
+	mutex_destroy(&fpc1020->lock);
+	wake_lock_destroy(&fpc1020->wlock);
 	dev_info(&pdev->dev, "%s\n", __func__);
 	return 0;
 }
