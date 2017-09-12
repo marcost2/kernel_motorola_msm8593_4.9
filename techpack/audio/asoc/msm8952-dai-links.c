@@ -496,6 +496,7 @@ static struct snd_soc_dai_link msm8952_madera_mods_be_dai[] = {
 	}
 };
 
+#ifdef CONFIG_SND_SOC_MODS_CODEC_SHIM
 static struct snd_soc_dai_link msm8952_madera_albus_mods_be_dai[] = {
 	{
 		/* mods I2S in and out */
@@ -528,6 +529,7 @@ static struct snd_soc_dai_link msm8952_madera_albus_mods_be_dai[] = {
 		.ignore_suspend = 1,
 	}
 };
+#endif
 
 static struct snd_soc_dai_link msm8952_madera_be_dai[] = {
 	/* Backend DAI Links */
@@ -2037,18 +2039,26 @@ struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			memcpy(msm8952_madera_dai_links + len_2a,
 				msm8952_madera_l35_dai_link,
 				sizeof(msm8952_madera_l35_dai_link));
-			memcpy(msm8952_madera_dai_links + len3,
-				msm8952_madera_albus_mods_be_dai,
-				sizeof(msm8952_madera_albus_mods_be_dai));
-			len4 = len3 + ARRAY_SIZE(msm8952_madera_mods_be_dai);
+			#ifdef CONFIG_SND_SOC_MODS_CODEC_SHIM
+				memcpy(msm8952_madera_dai_links + len3,
+					msm8952_madera_albus_mods_be_dai,
+					sizeof(msm8952_madera_albus_mods_be_dai));
+				len4 = len3 + ARRAY_SIZE(msm8952_madera_mods_be_dai);
+			#else
+				len4 = len3;
+			#endif
 		} else {
 			memcpy(msm8952_madera_dai_links + len_2a,
 				msm8952_madera_l34_dai_link,
 				sizeof(msm8952_madera_l34_dai_link));
-			memcpy(msm8952_madera_dai_links + len3,
-				msm8952_madera_mods_be_dai,
-				sizeof(msm8952_madera_mods_be_dai));
-			len4 = len3 + ARRAY_SIZE(msm8952_madera_mods_be_dai);
+			#ifdef CONFIG_SND_SOC_MODS_CODEC_SHIM
+				memcpy(msm8952_madera_dai_links + len3,
+					msm8952_madera_mods_be_dai,
+					sizeof(msm8952_madera_mods_be_dai));
+				len4 = len3 + ARRAY_SIZE(msm8952_madera_mods_be_dai);
+			#else
+				len4 = len3;
+			#endif
 		}
 	}
 #endif
