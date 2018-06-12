@@ -861,6 +861,17 @@ config MODS_USB_EXT_BRIDGE
 	  module with the kernel USB drivers. If you are using the MODS
 	  kernel modules, you should select yes, if not no.
 
+config INPUT_DRV2624_HAPTICS
+	tristate "TI DRV2624 haptics support"
+	depends on INPUT && I2C
+	select INPUT_FF_MEMLESS
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the TI DRV2624 haptics driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called drv2624_mmi.	  
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
