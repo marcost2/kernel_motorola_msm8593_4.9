@@ -9,6 +9,14 @@ config MMI_DEVICE_DTBS
 		Only include Motorola device specific DTBs to limit the number that
 		get built during kernel compilation.
 
+config ALBUS_DTB
+	depends on ARCH_MSM
+	default n
+	bool "Albus DTBs"
+	help
+	  Only include Albus specific DTBs to limit the number that
+	  get built during kernel compilation.
+
 config ALI_DTB
 	depends on ARCH_QCOM
 	default n
