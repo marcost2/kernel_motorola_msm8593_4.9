@@ -10,6 +10,11 @@ DTC_FLAGS += -p 1024
 dtbo-$(CONFIG_ALI_DTB) += sdm450-ali-evt-overlay.dtbo
 
 
+
+dtbo-$(CONFIG_ALBUS_DTB) += msm8937-albus-mot-overlay.dtbo
+
+msm8953-albus-mot-overlay.dtbo-base += msm8953-albus-base.dts
+
 dtb-$(CONFIG_ALBUS_DTB)+= \
   	msm8953-albus-p0.dtb \
 	msm8953-albus-p1.dtb \
