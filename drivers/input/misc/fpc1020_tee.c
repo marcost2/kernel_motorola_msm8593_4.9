@@ -320,8 +320,11 @@ static int fpc1020_probe(struct platform_device *pdev)
 	rc = fpc1020_request_named_gpio(fpc1020, "irq",
 			&fpc1020->irq_gpio);
 	gpio_direction_input(fpc1020->irq_gpio);
-	if (rc)
+	if (rc) {
+		dev_err(dev, "could not find irq\n");
 		goto exit;
+	}
+		
 
 	mutex_init(&fpc1020->lock);
 	wake_lock_init(&fpc1020->wlock, WAKE_LOCK_SUSPEND, "fpc1020");
@@ -349,7 +352,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	dev_info(dev, "%s: ok\n", __func__);
+	dev_err(dev, "%s: ok\n", __func__);
 	fpc1020->fb_black = false;
 	fpc1020->fb_notifier = fpc_notif_block;
 	fb_register_client(&fpc1020->fb_notifier);
