@@ -545,6 +545,14 @@ config SANDERS_DTB
 	  Only include Sanders specific DTBs to limit the number that
 	  get built during kernel compilation.
 
+config ALBUS_DTB
+	depends on ARCH_QCOM
+	default n
+	bool "Albus DTBs"
+	help
+	  Only include Albus specific DTBs to limit the number that
+	  get built during kernel compilation.
+
 config MONTANA_DTB
 	depends on ARCH_QCOM
 	default n

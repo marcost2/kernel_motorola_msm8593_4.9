@@ -688,6 +688,15 @@ dtb-$(CONFIG_MONTANA_DTB) += \
 	msm8937-montana-p2.dtb \
 	msm8937-montana-p3.dtb
 
+dtb-$(CONFIG_ALBUS_DTB) += \
+	msm8953-albus-p0.dtb \
+	msm8953-albus-p1.dtb \
+	msm8953-albus-p1a1.dtb \
+	msm8953-albus-p1b.dtb \
+	msm8953-albus-p2.dtb \
+	msm8953-albus-p3.dtb \
+	msm8953-albus-p4.dtb
+
 dtb-$(CONFIG_SANDERS_DTB) += \
 	msm8953-sanders-p1.dtb \
 	msm8953-sanders-p2.dtb \
