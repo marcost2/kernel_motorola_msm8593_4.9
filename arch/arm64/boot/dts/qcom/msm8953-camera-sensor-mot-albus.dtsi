@@ -352,18 +352,16 @@
 		};
 	};
 
-	led_flash0: qcom,camera-flash@0 {
-		cell-index = <0>;
-		compatible = "qcom,camera-flash";
-		qcom,flash-type = <1>;
-		qcom,flash-source = <&pmi8950_flash0 &pmi8950_flash1>;
-		qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
-		qcom,switch-source = <&pmi8950_switch>;
-		/* gpio 113 is used to select between front/rear flash */
-		gpios = <&tlmm 113 0>;
-		qcom,gpio-custom1 = <0>;
-	};
+	
 };
+
+&led_flash0 {
+	cell-index = <0>;
+	/* gpio 113 is used to select between front/rear flash */
+	gpios = <&tlmm 113 0>;
+	qcom,gpio-custom1 = <0>;
+};
+
 &rpm_bus {
 	rpm-regulator-ldoa10 {
 		status = "okay";

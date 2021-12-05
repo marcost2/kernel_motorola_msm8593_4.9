@@ -349,7 +349,7 @@
 			"msm-pcm-lpa", "marley-codec";
 
 		asoc-cpu = <&dai_pri_auxpcm>,
-			<&dai_mi2s5>,
+			<&dai_mi2s4>,
 			<&sb_0_rx>, <&sb_0_tx>,
 			<&sb_1_rx>, <&sb_1_tx>,
 			<&sb_2_rx>, <&sb_2_tx>,
@@ -397,11 +397,15 @@
 		mmi,ospl-left-feedback;
 	};
 
+	lpa: qcom,msm-pcm-lpa {
+		compatible = "qcom,msm-pcm-lpa";
+	};
+
 	qcom,msm-dai-mi2s {
 		dai_mi2s3: qcom,msm-dai-q6-mi2s-quat {
 			status = "disabled";
 		};
-		dai_mi2s5: qcom,msm-dai-q6-mi2s-quin {
+		dai_mi2s4: qcom,msm-dai-q6-mi2s-quin {
 			qcom,msm-mi2s-rx-lines = <1>;
 		};
 	};
@@ -723,4 +727,10 @@
 	qcom,irq-volt-empty-mv = <3000>;
 	qcom,fg-cutoff-voltage-mv = <3200>;
 	qcom,battery-data = <&mot_albusbatterydata>;
+};
+
+&qcom_seecom {
+	/delete-property/ qcom,commonlib64-loaded-by-uefi;
+	qcom,appsbl-qseecom-support;
+
 };
