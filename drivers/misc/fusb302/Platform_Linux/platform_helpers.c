@@ -5070,7 +5070,7 @@ static ssize_t fusb302_enable_vconn(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (!strnicmp(buf, "1", 1))
+	if (!strncasecmp(buf, "1", 1))
 		enable = true;
 
 	if (fusb302_cc == CC1) {
