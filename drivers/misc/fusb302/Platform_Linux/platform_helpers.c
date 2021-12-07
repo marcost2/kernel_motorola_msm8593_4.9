@@ -13,6 +13,7 @@
 #include <linux/of_irq.h>
 #include <linux/power_supply.h>
 #include <linux/debugfs.h>
+#include <linux/moduleparam.h> //Needed for the descriptor
 #include "fusb30x_global.h"	// Chip structure access
 #include "../core/core.h"	// Core access
 #include "../core/fusb30X.h"
