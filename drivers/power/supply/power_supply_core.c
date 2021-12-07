@@ -59,6 +59,43 @@ static bool __power_supply_is_supplied_by(struct power_supply *supplier,
 	return false;
 }
 
+/**
+ * power_supply_set_supply_type - set type of the power supply
+ * @psy:	the power supply to control
+ * @supply_type:	sets type property of power supply
+ */
+int power_supply_set_supply_type(struct power_supply *psy,
+				enum power_supply_type supply_type)
+{
+	union power_supply_propval ret;
+
+	if (psy->desc->set_property)
+		ret.intval = supply_type;
+		return psy->desc->set_property(psy, POWER_SUPPLY_PROP_TYPE,
+								&ret);
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(power_supply_set_supply_type);
+
+/**
+ * power_supply_set_present - set present state of the power supply
+ * @psy:	the power supply to control
+ * @enable:	sets present property of power supply
+ */
+int power_supply_set_present(struct power_supply *psy, bool enable)
+{
+	union power_supply_propval ret;
+
+	if (psy->desc->set_property)
+		ret.intval = enable;
+		return psy->desc->set_property(psy, POWER_SUPPLY_PROP_PRESENT,
+								&ret);
+
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(power_supply_set_present);
+
 static int __power_supply_changed_work(struct device *dev, void *data)
 {
 	struct power_supply *psy = data;
