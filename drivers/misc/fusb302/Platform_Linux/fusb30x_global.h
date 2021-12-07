@@ -80,7 +80,8 @@ struct fusb30x_chip		// Contains data required by this driver
 
 extern struct fusb30x_chip *g_chip;
 /* Variable to indicate switch state for SS lines */
-extern struct power_supply usbc_psy;
+extern struct power_supply *usbc_psy;
+extern struct power_supply_desc usbc_psy_desc;
 extern int fusb_power_supply_set_property(struct power_supply *psy,
 		enum power_supply_property prop,
 		const union power_supply_propval *val);

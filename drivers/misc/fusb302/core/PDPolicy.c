@@ -2295,7 +2295,7 @@ void PolicySinkReady(void)
 		g_Idle = TRUE;	// Wait for VBUSOK or HARDRST or GCRCSENT
 		platform_enable_timer(FALSE);
 #endif // FSC_INTERRUPT_TRIGGERED
-		power_supply_changed(&usbc_psy);
+		power_supply_changed(usbc_psy);
 		if (atomic_read(&coreReqCtx.pending) > 0)
 			complete(&coreReqCtx.complete);
 		}
