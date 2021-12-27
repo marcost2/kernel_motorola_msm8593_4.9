@@ -856,6 +856,11 @@
 					"back_temp";
 		status = "ok";
 	};
+
+	restart@4ab000 {
+		qcom,force-warm-reboot;
+	};
+
 };
 
 &dai_mi2s5 {
