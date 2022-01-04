@@ -2388,6 +2388,8 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 			panic("An UVLO was occurred.");
 	}
 
+	qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
+
 	/* program s3 debounce */
 	rc = of_property_read_u32(pon->pdev->dev.of_node,
 				"qcom,s3-debounce", &s3_debounce);
