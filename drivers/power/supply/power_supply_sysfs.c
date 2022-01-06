@@ -47,7 +47,10 @@ static ssize_t power_supply_show_property(struct device *dev,
 		"Unknown", "Battery", "UPS", "Mains", "USB", "USB_DCP",
 		"USB_CDP", "USB_ACA", "USB_HVDCP", "USB_HVDCP_3", "USB_PD",
 		"Wireless", "USB_FLOAT", "BMS", "Parallel", "Main", "Wipower",
-		"TYPEC", "TYPEC_UFP", "TYPEC_DFP"
+		"TYPEC", "TYPEC_UFP", "TYPEC_DFP",
+		"PTP", "Switch", "USBC", "USBC_PD", "USBC_SINK",
+		"USBC_SRC", "USBC_DBG", "USBC_PWR", "USBC_AUDIO",
+		"USBC_UNSUPP"
 	};
 	static char *status_text[] = {
 		"Unknown", "Charging", "Discharging", "Not charging", "Full"
@@ -353,6 +356,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(qg_vbms_mode),
 	POWER_SUPPLY_ATTR(real_capacity),
 	POWER_SUPPLY_ATTR(age),
+	POWER_SUPPLY_ATTR(disable_usbc),
+	POWER_SUPPLY_ATTR(switch_state),
+	POWER_SUPPLY_ATTR(wakeup),
+	POWER_SUPPLY_ATTR(mask_int),
 	/* Local extensions of type int64_t */
 	POWER_SUPPLY_ATTR(charge_counter_ext),
 	/* Properties of type `const char *' */
