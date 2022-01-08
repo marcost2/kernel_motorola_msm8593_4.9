@@ -440,12 +440,6 @@
 		status = "okay";
 	};
 
-	qcom_tzlog: tz-log@08600720 {
-		compatible = "qcom,tz-log";
-		reg = <0x08600720 0x2000>;
-		status = "okay";
-	};
-
 	qcom_rng: qrng@e3000 {
 		compatible = "qcom,msm-rng";
 		reg = <0xe3000 0x1000>;
