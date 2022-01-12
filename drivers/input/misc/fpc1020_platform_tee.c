@@ -28,6 +28,8 @@ struct FPS_data {
 	struct blocking_notifier_head nhead;
 } *fpsData;
 
+static struct kernfs_node *soc_symlink = NULL;
+
 struct FPS_data *FPS_init(struct device *dev)
 {
 	struct FPS_data *mdata = devm_kzalloc(dev,
@@ -203,6 +205,10 @@ static int fpc1020_probe(struct platform_device *pdev)
 	struct fpc1020_data *fpc1020 = devm_kzalloc(dev, sizeof(*fpc1020),
 			GFP_KERNEL);
 
+	struct device *platform_dev;
+	struct kobject *soc_kobj;
+	struct kernfs_node *devices_node, *soc_node;
+
 	if (!np) {
 		dev_err(dev, "no of node found\n");
 		rc = -EINVAL;
@@ -257,6 +263,28 @@ static int fpc1020_probe(struct platform_device *pdev)
 		dev_err(dev, "could not create sysfs\n");
 		goto exit;
 	}
+
+	if (!dev->parent || !dev->parent->parent) {
+		dev_warn(dev, "Parent platform device not found\n");
+		goto exit;
+	}
+
+	platform_dev = dev->parent->parent;
+	if (strcmp(kobject_name(&platform_dev->kobj), "platform")) {
+		dev_warn(dev, "Parent platform device name not matched: %s\n",
+			 kobject_name(&platform_dev->kobj));
+		goto exit;
+	}
+
+	devices_node = platform_dev->kobj.sd->parent;
+	soc_kobj = &dev->parent->kobj;
+	soc_node = soc_kobj->sd;
+	kernfs_get(soc_node);
+	soc_symlink = kernfs_create_link(devices_node, kobject_name(soc_kobj), soc_node);
+	kernfs_put(soc_node);
+
+	if (IS_ERR(soc_symlink))
+		dev_warn(dev, "Unable to create soc symlink\n");
 
 	dev_info(dev, "%s: ok\n", __func__);
 exit:
