@@ -659,6 +659,7 @@
 		qcom,otg-fault-gpio = <&tlmm 34  0x1>; /* GPIOF_IN*/
 		psy,type-c;
 		qcom,ssusb-compliance;
+		extcon = <&qpnp_smbcharger>;
 		dwc3@7000000 {
 			controller-number = /bits/ 8 <1>;
 		};
