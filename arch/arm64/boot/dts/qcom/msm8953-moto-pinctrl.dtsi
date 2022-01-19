@@ -71,6 +71,7 @@
 		};
 	};
 
+	/delete-node/ i2c_1;
 	i2c_1 {
 		i2c_1_active: i2c_1_active {
 			i2c_1 {
