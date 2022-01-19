@@ -82,6 +82,7 @@
 	/delete-node/ uart@78b0000;
 	/delete-node/ uart@7aef000;
 	/delete-node/ i2c@7af5000;
+	/delete-node/ i2c@78b5000;
 	/delete-node/ spi@78b7000;
 	/delete-node/ adv_vreg;
 	/delete-node/ sound-9335;
@@ -590,6 +591,8 @@
 
 			/* Placeholder for SPI defined later */
 			spi_1: spi@78b5000 { };
+
+			i2c_1: i2c@78b5000 { };
 		};
 	};
 
