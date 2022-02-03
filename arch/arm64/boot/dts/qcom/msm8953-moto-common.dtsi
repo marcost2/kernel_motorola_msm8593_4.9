@@ -1177,6 +1177,8 @@
 	qcom,chg-inhibit-fg;
 	qcom,rparasitic-uohm = <100000>;
 	qcom,bms-psy-name = "bms";
+	qcom,external-typec;
+	qcom,typec-psy-name = "usbc";
 	qcom,eb-batt-psy-name = "gb_battery";
 	qcom,eb-pwr-psy-name = "gb_ptp";
 	qcom,charge-unknown-battery;
