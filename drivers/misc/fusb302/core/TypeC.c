@@ -184,6 +184,7 @@ int fusb_power_supply_set_property(struct power_supply *psy,
 			return 0;
 		} else
 			return -EINVAL;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_MAX:
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		gRequestOpCurrent = val->intval/10000;
 		core_send_sink_request();
@@ -210,6 +211,7 @@ int fusb_power_supply_is_writeable(struct power_supply *psy,
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_MAX:
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 	case POWER_SUPPLY_PROP_DISABLE_USB:
 	case POWER_SUPPLY_PROP_MASK_INT:
@@ -245,6 +247,7 @@ int fusb_power_supply_get_property(struct power_supply *psy,
 		else
 			val->intval = 0;
 		break;
+	case POWER_SUPPLY_PROP_CURRENT_CAPABILITY:
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		if (ConnState != AttachedSink)
 			val->intval = 0;
