@@ -603,8 +603,9 @@
 /* display boost and inverting boost regulators */
 &labibb {
 	status = "ok";
-	qpnp,qpnp-labibb-mode = "amoled";
-	qpnp,swire-control;
+	/delete-property/ qcom,qpnp-labibb-mode;
+	qcom,qpnp-labibb-mode = "amoled";
+	qcom,swire-control;
 };
 
 &ibb_regulator {
