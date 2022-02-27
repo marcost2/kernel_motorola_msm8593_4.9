@@ -4385,10 +4385,12 @@ static int msm_dai_q6_mi2s_hw_params(struct snd_pcm_substream *substream,
 		dai_data->port_config.i2s.bit_width = 24;
 		dai_data->bitwidth = 24;
 		break;
+#ifndef CONFIG_SND_LEGACY
 	case SNDRV_PCM_FORMAT_S32_LE:
 		dai_data->port_config.i2s.bit_width = 32;
 		dai_data->bitwidth = 32;
 		break;
+#endif
 	default:
 		pr_err("%s: format %d\n",
 			__func__, params_format(params));
@@ -4587,13 +4589,21 @@ static struct snd_soc_dai_driver msm_dai_q6_mi2s_dai[] = {
 			.stream_name = "Primary MI2S Capture",
 			.aif_name = "PRI_MI2S_TX",
 			.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |
-				 SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |
+				 SNDRV_PCM_RATE_16000
+#ifndef CONFIG_SND_LEGACY
+				 | SNDRV_PCM_RATE_22050 |
 				 SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
 				 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |
-				 SNDRV_PCM_RATE_192000,
+				 SNDRV_PCM_RATE_192000
+#endif
+				 ,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 			.rate_min =     8000,
+#ifndef CONFIG_SND_LEGACY
 			.rate_max =     192000,
+#else
+			.rate_max =     48000,
+#endif
 		},
 		.ops = &msm_dai_q6_mi2s_ops,
 		.id = MSM_PRIM_MI2S,
@@ -4617,13 +4627,21 @@ static struct snd_soc_dai_driver msm_dai_q6_mi2s_dai[] = {
 			.stream_name = "Secondary MI2S Capture",
 			.aif_name = "SEC_MI2S_TX",
 			.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |
-				 SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |
+				 SNDRV_PCM_RATE_16000
+#ifndef CONFIG_SND_LEGACY
+				 | SNDRV_PCM_RATE_22050 |
 				 SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
 				 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |
-				 SNDRV_PCM_RATE_192000,
+				 SNDRV_PCM_RATE_192000
+#endif
+				 ,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 			.rate_min =     8000,
+#ifndef CONFIG_SND_LEGACY
 			.rate_max =     192000,
+#else
+			.rate_max =     48000,
+#endif
 		},
 		.ops = &msm_dai_q6_mi2s_ops,
 		.id = MSM_SEC_MI2S,
@@ -4652,7 +4670,8 @@ static struct snd_soc_dai_driver msm_dai_q6_mi2s_dai[] = {
 				 SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
 				 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |
 				 SNDRV_PCM_RATE_192000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE |
+						SNDRV_PCM_FMTBIT_S24_LE,
 			.rate_min =     8000,
 			.rate_max =     192000,
 		},
@@ -4683,7 +4702,8 @@ static struct snd_soc_dai_driver msm_dai_q6_mi2s_dai[] = {
 				 SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
 				 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |
 				 SNDRV_PCM_RATE_192000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE |
+							SNDRV_PCM_FMTBIT_S24_LE,
 			.rate_min =     8000,
 			.rate_max =     192000,
 		},

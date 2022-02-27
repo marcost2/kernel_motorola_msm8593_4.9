@@ -59,11 +59,19 @@ struct msm_audio_in_frame_info {
 
 #define PLAYBACK_MIN_NUM_PERIODS    2
 #define PLAYBACK_MAX_NUM_PERIODS    8
+#ifndef CONFIG_SND_LEGACY
 #define PLAYBACK_MAX_PERIOD_SIZE    122880
+#else
+#define PLAYBACK_MAX_PERIOD_SIZE    61440
+#endif
 #define PLAYBACK_MIN_PERIOD_SIZE    128
 #define CAPTURE_MIN_NUM_PERIODS     2
 #define CAPTURE_MAX_NUM_PERIODS     8
+#ifndef CONFIG_SND_LEGACY
 #define CAPTURE_MAX_PERIOD_SIZE     122880
+#else
+#define CAPTURE_MAX_PERIOD_SIZE     61440
+#endif
 #define CAPTURE_MIN_PERIOD_SIZE     320
 
 struct msm_audio {
