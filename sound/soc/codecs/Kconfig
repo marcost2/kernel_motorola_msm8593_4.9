@@ -492,7 +492,8 @@ config SND_SOC_CS47L15
 	tristate
 
 config SND_SOC_CS47L35
-	tristate
+	tristate "Cirrus Logic CS4735 CODEC"
+	depends on I2C
 
 config SND_SOC_CS47L85
 	tristate
@@ -593,7 +594,7 @@ config SND_SOC_MADERA
 	default m if SND_SOC_CS47L92=m
 
 config SND_SOC_MADERA_SLIMBUS
-	tristate
+	tristate "Slimbus support for Madera family"
 	depends on SLIMBUS
 
 config SND_SOC_MAX98088
