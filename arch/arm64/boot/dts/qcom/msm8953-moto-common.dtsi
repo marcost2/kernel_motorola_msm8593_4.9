@@ -17,6 +17,7 @@
 #include "dsi-panel-mot-dummy-qhd-video.dtsi" //done
 #include "carrier-channel-ids.dtsi" //done
 #include <moto-mem-reserve.h> //done
+#include <dt-bindings/sound/madera.h>
 
 / {
 	aliases {
