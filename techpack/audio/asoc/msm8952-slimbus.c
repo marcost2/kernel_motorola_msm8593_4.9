@@ -2606,6 +2606,8 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 #ifndef CONFIG_SND_SOC_MADERA
 	u32 rx_ch[SLIM_MAX_RX_PORTS], tx_ch[SLIM_MAX_TX_PORTS];
 	u32 rx_ch_cnt = 0, tx_ch_cnt = 0;
+#else
+	u32 tx_ch_cnt = 0;
 #endif
 	u32 user_set_tx_ch = 0;
 	u32 rx_ch_count;
@@ -2646,7 +2648,7 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 		if (ret < 0) {
 			pr_err("%s: failed to set codec chan map, err:%d\n",
 				__func__, ret);
-			goto err_ch_map;
+			goto end;
 		}
 		ret = snd_soc_dai_set_channel_map(cpu_dai, 0, 0,
 						  rx_ch_count, msm_slim_rx_ch);
@@ -2654,7 +2656,7 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 		if (ret < 0) {
 			pr_err("%s: failed to set cpu chan map, err:%d\n",
 				__func__, ret);
-			goto err_ch_map;
+			goto end;
 		}
 	} else {
 		pr_debug("%s: %s_tx_dai_id_%d_ch=%d\n", __func__,
@@ -2691,9 +2693,8 @@ int msm_snd_hw_params(struct snd_pcm_substream *substream,
 			user_set_tx_ch = 1;
 #endif
 
-		pr_debug("%s: msm_slim_0_tx_ch(%d) user_set_tx_ch(%d) be_id (%d)\n",
-			 __func__,  slim_tx_cfg[0].channels, user_set_tx_ch,
-			 dai_link->be_id);
+		pr_debug("%s: msm_slim_0_tx_ch(%d) user_set_tx_ch(%d) tx_ch_cnt(%d)\n",
+			__func__, msm_slim_0_tx_ch, user_set_tx_ch, tx_ch_cnt);
 
 #ifndef CONFIG_SND_SOC_MADERA
 		ret = snd_soc_dai_set_channel_map(cpu_dai,
