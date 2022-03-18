@@ -379,14 +379,14 @@
 			<&compress>, <&hostless>,
 			<&afe>, <&lsm>,
 			<&routing>, <&cpe>,
-			<&lpa>, <&cs47l35>;
+			<&lpa>, <&cs47l35>, <&pcm_noirq>;
 		asoc-platform-names = "msm-pcm-dsp.0", "msm-pcm-dsp.1",
 			"msm-pcm-dsp.2", "msm-voip-dsp",
 			"msm-pcm-voice", "msm-pcm-loopback",
 			"msm-compress-dsp", "msm-pcm-hostless",
 			"msm-pcm-afe", "msm-lsm-client",
 			"msm-pcm-routing", "msm-cpe-lsm",
-			"msm-pcm-lpa", "cs47l35-codec";
+			"msm-pcm-lpa", "cs47l35-codec", "msm-pcm-dsp-noirq";
 
 		asoc-cpu = <&dai_pri_auxpcm>,
 			<&dai_mi2s5>,
@@ -401,7 +401,8 @@
 			<&incall_record_tx>, <&incall_music_rx>,
 			<&incall_music_2_rx>, <&sb_5_rx>,
 			<&bt_sco_rx>, <&bt_sco_tx>,
-			<&int_fm_rx>, <&int_fm_tx>;
+			<&int_fm_rx>, <&int_fm_tx>,
+			<&proxy_rx>, <&proxy_tx>;
 		asoc-cpu-names = "msm-dai-q6-auxpcm.1",
 			"msm-dai-q6-mi2s.5",
 			"msm-dai-q6-dev.16384", "msm-dai-q6-dev.16385",
@@ -415,7 +416,8 @@
 			"msm-dai-q6-dev.32772", "msm-dai-q6-dev.32773",
 			"msm-dai-q6-dev.32770", "msm-dai-q6-dev.16394",
 			"msm-dai-q6-dev.12288", "msm-dai-q6-dev.12289",
-			"msm-dai-q6-dev.12292", "msm-dai-q6-dev.12293";
+			"msm-dai-q6-dev.12292", "msm-dai-q6-dev.12293",
+			"msm-dai-q6-dev.8194", "msm-dai-q6-dev.8195";
 
 		qcom,albus-audio;
 		qcom,hdmi-dba-codec-rx;
