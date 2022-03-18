@@ -81,6 +81,37 @@
 	/delete-node/ adv_vreg;
 	/delete-node/ sound-9335;
 
+	qcom,msm-dai-tdm-pri-rx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-pri-tx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-sec-rx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-sec-tx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-tert-rx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-tert-tx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-quat-rx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-quat-tx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-quin-rx {
+		status = "disabled";
+	};
+	qcom,msm-dai-tdm-quin-tx {
+		status = "disabled";
+	};
+
 	alsa_to_h2w {
 		compatible = "mmi,alsa-to-h2w";
 	};
@@ -1317,4 +1348,48 @@
 			qcom,init-voltage = <2850000>;
 		};
 	};
+};
+
+&int_codec {
+	status = "disabled";
+};
+
+&pmic_analog_codec {
+	status = "disabled";
+};
+
+&wsa881x_i2c_f {
+	status = "disabled";
+};
+
+&wsa881x_i2c_45 {
+	status = "disabled";
+};
+
+&cdc_pri_mi2s_gpios {
+	status = "disabled";
+};
+
+&cdc_quin_mi2s_gpios {
+	status = "disabled";
+};
+
+&cdc_us_euro_sw {
+	status = "disabled";
+};
+
+&cdc_comp_gpios {
+	status = "disabled";
+};
+
+&wsa881x_analog_vi_gpio {
+	status = "disabled";
+};
+
+&wsa881x_analog_clk_gpio {
+	status = "disabled";
+};
+
+&wsa881x_analog_reset_gpio {
+	status = "disabled";
 };
