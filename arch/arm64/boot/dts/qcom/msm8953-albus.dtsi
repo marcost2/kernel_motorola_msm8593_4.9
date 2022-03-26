@@ -213,7 +213,7 @@
 			spi-max-frequency = <26000000>;
 			reg = <0x0>;
 			interrupt-parent = <&tlmm>;
-			interrupts = <46 0>;
+			interrupts = <46 0x8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			reset-gpios = <&tlmm 68 0>;
