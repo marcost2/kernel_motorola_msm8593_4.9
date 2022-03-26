@@ -1324,7 +1324,7 @@
 	/delete-node/ tasha_codec;
 	madera-codec {
 		compatible = "cirrus,madera-slim-audio";
-		elemental-addr = [00 7F 60 63 FA 01];
+		elemental-addr = [00 00 60 63 FA 01];
 	};
 };
 
