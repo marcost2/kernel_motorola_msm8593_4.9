@@ -218,6 +218,7 @@
 			#interrupt-cells = <2>;
 			reset-gpios = <&tlmm 68 0>;
 			cirrus,out-mono = <1 0 0 0 0 0>;
+			cirrus,gpsw = <1 0>;
 
 			cirrus,inmode = <
 				MADERA_INMODE_DIFF MADERA_INMODE_DIFF
@@ -304,8 +305,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				cirrus,gpsw = <1>;
-				cirrus,jd-use-jd2;
 				acc@1 {
 					reg = <1>;
 
