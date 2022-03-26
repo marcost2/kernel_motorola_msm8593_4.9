@@ -308,7 +308,7 @@
 				acc@1 {
 					reg = <1>;
 
-					cirrus,micd-detect-debounce = <300>;
+					cirrus,micd-detect-debounce-ms = <300>;
 					cirrus,micd-bias-start-time = <8>;
 					cirrus,micd-rate = <6>;
 					cirrus,micd-ranges = <
