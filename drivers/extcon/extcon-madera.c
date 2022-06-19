@@ -795,7 +795,7 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 		break;
 	default:
 		mask = MADERA_HPD_OVD_ENA_SEL_MASK;
-		if (!clamp)
+		if (clamp)
 			val = MADERA_HPD_OVD_ENA_SEL_MASK;
 		else
 			val = 0;
@@ -804,8 +804,8 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 
 	madera->out_clamp[0] = clamp;
 
-	/* Keep the HP output stages disabled while disabling the clamp */
-	if (!clamp && !ep_sel) {
+	/* Keep the HP output stages disabled while doing the clamp */
+	if (clamp && !ep_sel) {
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_OUTPUT_ENABLES_1,
 					 (MADERA_OUT1L_ENA |
@@ -836,8 +836,8 @@ static void madera_extcon_hp_clamp(struct madera_extcon *info, bool clamp)
 		break;
 	}
 
-	/* Restore the desired state when restoring the clamp */
-	if (clamp) {
+	/* Restore the desired state while not doing the clamp */
+	if (!clamp) {
 		madera->out_shorted[0] = (madera->hp_impedance_x100[0] <=
 					  info->hpdet_short_x100);
 
@@ -1649,7 +1649,7 @@ int madera_hpdet_start(struct madera_extcon *info)
 	case CS47L35:
 	case CS47L85:
 	case WM1840:
-		madera_extcon_hp_clamp(info, false);
+		madera_extcon_hp_clamp(info, true);
 		ret = regmap_update_bits(madera->regmap,
 					 MADERA_ACCESSORY_DETECT_MODE_1,
 					 MADERA_ACCDET_MODE_MASK,
@@ -1700,7 +1700,7 @@ int madera_hpdet_start(struct madera_extcon *info)
 				"Failed to set HPDET sense: %d\n", ret);
 			goto err;
 		}
-		madera_extcon_hp_clamp(info, false);
+		madera_extcon_hp_clamp(info, true);
 		madera_hpdet_start_micd(info);
 		break;
 	}
@@ -1715,7 +1715,7 @@ int madera_hpdet_start(struct madera_extcon *info)
 	return 0;
 
 err:
-	madera_extcon_hp_clamp(info, true);
+	madera_extcon_hp_clamp(info, false);
 
 	pm_runtime_put_autosuspend(info->dev);
 
@@ -1813,7 +1813,7 @@ void madera_hpdet_stop(struct madera_extcon *info)
 		break;
 	}
 
-	madera_extcon_hp_clamp(info, true);
+	madera_extcon_hp_clamp(info, false);
 
 	pm_runtime_mark_last_busy(info->dev);
 	pm_runtime_put_autosuspend(info->dev);
