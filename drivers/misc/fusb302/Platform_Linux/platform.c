@@ -286,7 +286,7 @@ void platform_set_data_role(FSC_BOOL PolicyIsDFP)
 }
 FSC_S32 platform_set_usb_device_enable(FSC_BOOL blnEnable)
 {
-	struct power_supply *usb_psy = power_supply_get_by_name("usbc");
+	struct power_supply *usb_psy = power_supply_get_by_name("usb");
 	static FSC_BOOL owner_requested = FALSE;
 
 	if (!usb_psy) {
@@ -320,7 +320,7 @@ FSC_S32 platform_set_usb_device_enable(FSC_BOOL blnEnable)
 }
 void platform_set_usb_host_enable(FSC_BOOL blnEnable)
 {
-	struct power_supply *usb_psy = power_supply_get_by_name("usbc");
+	struct power_supply *usb_psy = power_supply_get_by_name("usb");
 
 	FUSB_LOG("%s -  %d\n", __func__, blnEnable);
 	if (usb_psy) {
