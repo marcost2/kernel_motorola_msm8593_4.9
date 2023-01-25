@@ -163,6 +163,7 @@ struct smbchg_chip {
 	struct ilim_map			wipower_pt;
 	struct ilim_map			wipower_div2;
 	struct qpnp_vadc_chip		*vadc_dev;
+	struct qpnp_vadc_chip		*usb_vadc_dev;
 	bool				wipower_dyn_icl_avail;
 	struct ilim_entry		current_ilim;
 	struct mutex			wipower_config;
@@ -4586,12 +4587,18 @@ static int force_9v_hvdcp(struct smbchg_chip *chip)
 	return rc;
 }
 
+#define HVDCP3_INC 150
 static void smbchg_hvdcp_det_work(struct work_struct *work)
 {
 	struct smbchg_chip *chip = container_of(work,
 				struct smbchg_chip,
 				hvdcp_det_work.work);
 	int rc;
+	int st_volt_mv, en_volt_mv;
+	struct qpnp_vadc_result results;
+	union power_supply_propval pval = {0, };
+
+	
 
 	if (is_hvdcp_present(chip)) {
 		if (!chip->hvdcp3_supported &&
@@ -4599,11 +4606,44 @@ static void smbchg_hvdcp_det_work(struct work_struct *work)
 			/* force HVDCP 2.0 */
 			rc = force_9v_hvdcp(chip);
 			if (rc)
-				pr_err("could not force 9V HVDCP continuing rc=%d\n",
+				SMB_ERR(chip, "could not force 9V HVDCP continuing rc=%d\n",
 						rc);
 		}
+		SMB_WARN(chip, "Run HVDCP 2/3 Detection!\n");
+		pval.intval = POWER_SUPPLY_DP_DM_PREPARE;
+		power_supply_set_property(chip->batt_psy,POWER_SUPPLY_PROP_DP_DM, &pval);
+
+		rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
+		if (rc) {
+			SMB_ERR(chip, "Unable to read usbin rc=%d\n", rc);
+		}
+
+		st_volt_mv = (int)div_u64(results.physical, 1000);
+		SMB_WARN(chip, "HVDCP: Start Voltage %d mV\n", st_volt_mv);
+
+		pval.intval = POWER_SUPPLY_DP_DM_DP_PULSE;
+		power_supply_set_property(chip->batt_psy, POWER_SUPPLY_PROP_DP_DM, &pval);
+		msleep(300);
+
+		/*chip->vbus_inc_cnt++; Revisit when doing HB*/
+
+		rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
+		if (rc) {
+			SMB_ERR(chip, "Unable to read usbin rc=%d\n", rc);
+		}
+
+		en_volt_mv = (int)div_u64(results.physical, 1000);
+		SMB_WARN(chip, "HVDCP: End Voltage %d mV\n", en_volt_mv);
+
+		if ((en_volt_mv - st_volt_mv) >= HVDCP3_INC) {
+			SMB_INFO(chip, "HVDCP 3 CONFIRMED!");
+			pval.intval = POWER_SUPPLY_DP_DM_CONFIRMED_HVDCP3;
+			power_supply_set_property(chip->batt_psy,POWER_SUPPLY_PROP_DP_DM,&pval);
+		}
+		else{
 		smbchg_change_usb_supply_type(chip,
 				POWER_SUPPLY_TYPE_USB_HVDCP);
+		}
 		if (chip->batt_psy)
 			power_supply_changed(chip->batt_psy);
 		smbchg_aicl_deglitch_wa_check(chip);
@@ -8263,7 +8303,7 @@ static int smbchg_probe(struct platform_device *pdev)
 	int rc;
 	struct smbchg_chip *chip;
 	struct power_supply *typec_psy = NULL;
-	struct qpnp_vadc_chip *vadc_dev = NULL, *vchg_vadc_dev = NULL;
+	struct qpnp_vadc_chip *vadc_dev = NULL, *vchg_vadc_dev = NULL, *usb_vadc_dev = NULL;
 	const char *typec_psy_name;
 	struct power_supply_config usb_psy_cfg = {};
 	struct power_supply_config batt_psy_cfg = {};
@@ -8299,6 +8339,19 @@ static int smbchg_probe(struct platform_device *pdev)
 			return rc;
 		}
 	}
+
+	if (of_find_property(pdev->dev.of_node, "qcom,usbin-vadc", NULL)) {
+		usb_vadc_dev = qpnp_get_vadc(&pdev->dev, "usbin");
+		if (IS_ERR(usb_vadc_dev)) {
+			rc = PTR_ERR(usb_vadc_dev);
+			if (rc != -EPROBE_DEFER)
+				dev_err(&pdev->dev,
+					"Couldn't get usb vadc rc=%d\n", rc);
+			usb_vadc_dev = NULL;
+			return rc;
+		}
+	} else
+		usb_vadc_dev = NULL;
 
 	vchg_vadc_dev = NULL;
 	if (of_find_property(pdev->dev.of_node, "qcom,vchg_sns-vadc", NULL)) {
@@ -8432,6 +8485,7 @@ static int smbchg_probe(struct platform_device *pdev)
 	init_completion(&chip->usbin_uv_lowered);
 	init_completion(&chip->usbin_uv_raised);
 	chip->vadc_dev = vadc_dev;
+	chip->usb_vadc_dev = usb_vadc_dev;
 	chip->vchg_vadc_dev = vchg_vadc_dev;
 	chip->pdev = pdev;
 	chip->dev = &pdev->dev;
