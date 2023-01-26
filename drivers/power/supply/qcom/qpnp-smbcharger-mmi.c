@@ -4977,6 +4977,7 @@ static void handle_usb_removal(struct smbchg_chip *chip)
 	vote(chip->usb_icl_votable, SW_AICL_ICL_VOTER, false, 0);
 	vote(chip->aicl_deglitch_short_votable,
 		HVDCP_SHORT_DEGLITCH_VOTER, false, 0);
+	chip->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
 	if (!chip->hvdcp_not_supported)
 		restore_from_hvdcp_detection(chip);
 }
