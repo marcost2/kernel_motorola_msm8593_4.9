@@ -3775,6 +3775,7 @@ static int smbchg_icl_loop_disable_check(struct smbchg_chip *chip)
 
 #define UNKNOWN_BATT_TYPE	"Unknown Battery"
 #define LOADING_BATT_TYPE	"Loading Battery Data"
+#ifdef QCOM_BASE
 static int smbchg_config_chg_battery_type(struct smbchg_chip *chip)
 {
 	int rc = 0, max_voltage_uv = 0, fastchg_ma = 0, ret = 0, iterm_ua = 0;
@@ -3921,27 +3922,34 @@ static void check_battery_type(struct smbchg_chip *chip)
 		}
 	}
 }
-
+#endif
 static void smbchg_external_power_changed(struct power_supply *psy)
 {
 	struct smbchg_chip *chip = power_supply_get_drvdata(psy);
-	int rc, soc;
+#ifdef QCOM_BASE
+	int rc;
+#endif
+	int soc;
 
 	smbchg_aicl_deglitch_wa_check(chip);
 
 	if (is_bms_psy_present(chip)) {
+#ifdef QCOM_BASE
 		check_battery_type(chip);
+#endif
 		soc = get_prop_batt_capacity(chip);
 		if (chip->previous_soc != soc) {
 			chip->previous_soc = soc;
 			smbchg_soc_changed(chip);
 		}
 
+#ifdef QCOM_BASE
 		rc = smbchg_config_chg_battery_type(chip);
 		if (rc)
 			SMB_DBG(chip,
 				"Couldn't update charger configuration rc=%d\n",
 									rc);
+#endif
 	}
 
 	/* adjust vfloat */
@@ -7360,7 +7368,9 @@ static int smbchg_hw_init(struct smbchg_chip *chip)
 		return rc;
 	}
 
+#ifdef QCOM_BASE
 	check_battery_type(chip);
+#endif
 
 	/* set the float voltage */
 	if (chip->vfloat_mv != -EINVAL) {
