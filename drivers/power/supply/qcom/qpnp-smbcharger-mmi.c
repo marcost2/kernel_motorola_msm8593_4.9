@@ -808,16 +808,16 @@ static bool is_usb_present(struct smbchg_chip *chip)
 		SMB_ERR(chip, "Couldn't read usb rt status rc = %d\n", rc);
 		return false;
 	}
-	if (!(reg & USBIN_SRC_DET_BIT) || (reg & USBIN_OV_BIT))
+	/*if (!(reg & USBIN_SRC_DET_BIT) || (reg & USBIN_OV_BIT))
 		return false;
 
 	rc = smbchg_read(chip, &reg, chip->usb_chgpth_base + INPUT_STS, 1);
 	if (rc < 0) {
 		SMB_ERR(chip, "Couldn't read usb status rc = %d\n", rc);
 		return false;
-	}
+	}*/
 
-	return !!(reg & (USBIN_9V | USBIN_UNREG | USBIN_LV));
+	return !(reg & USBIN_UV_BIT) || !!(reg & USBIN_SRC_DET_BIT);
 }
 
 static char *usb_type_str[] = {
