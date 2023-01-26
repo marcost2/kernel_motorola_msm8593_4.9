@@ -1458,6 +1458,81 @@ static void use_pmi8996_tables(struct smbchg_chip *chip)
 	chip->tables.aicl_rerun_period_len = ARRAY_SIZE(aicl_rerun_period);
 }
 
+#define USBIN_TOLER 500
+static int smbchg_check_usbc_voltage(struct smbchg_chip *chip, int *volt_mv)
+{
+	union power_supply_propval ret = {0, };
+	int rc = -EINVAL;
+	struct qpnp_vadc_result results;
+	int adc_volt_mv;
+
+	/*if (!chip->usbc_psy || !chip->usbc_online)
+		return rc;*/
+
+	/*if (!chip->usbc_psy->get_property)
+		return rc;*/
+
+	rc = power_supply_get_property(chip->typec_psy,
+					  POWER_SUPPLY_PROP_VOLTAGE_NOW,
+					  &ret);
+	if (rc < 0) {
+		SMB_ERR(chip, "Err could not get USBC Voltage!\n");
+		return rc;
+	}
+
+	ret.intval /= 1000;
+
+	rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
+	if (rc) {
+		SMB_ERR(chip, "Unable to read usbin rc=%d\n", rc);
+		return rc;
+	}
+
+	adc_volt_mv = (int)div_u64(results.physical, 1000);
+
+	if ((adc_volt_mv > (ret.intval - USBIN_TOLER)) &&
+	    (adc_volt_mv < (ret.intval + USBIN_TOLER)))
+		*volt_mv = ret.intval;
+	else
+		*volt_mv = adc_volt_mv;
+
+	return 0;
+}
+
+#define USBC_5V_MODE 5000
+#define USBC_9V_MODE 9000
+static int smbchg_set_usbc_voltage(struct smbchg_chip *chip, int volt_mv)
+{
+	union power_supply_propval ret = {0, };
+	int rc = -EINVAL;
+	int volt_mv_now;
+
+	if (!chip->typec_psy)
+		return rc;
+
+	/*if (!chip->usbc_psy->set_property)
+		return rc;*/
+
+	if (smbchg_check_usbc_voltage(chip, &volt_mv_now) < 0)
+		return rc;
+
+	if (volt_mv_now == volt_mv)
+		return 0;
+
+	ret.intval = volt_mv * 1000;
+
+	rc = power_supply_set_property(chip->typec_psy,
+					  POWER_SUPPLY_PROP_VOLTAGE_MAX,
+					  &ret);
+	if (rc < 0) {
+		SMB_ERR(chip, "Err could not set USBC Voltage!\n");
+		return rc;
+	}
+
+	return 0;
+}
+
+
 #define CMD_CHG_REG	0x42
 #define EN_BAT_CHG_BIT		BIT(1)
 static int smbchg_charging_en(struct smbchg_chip *chip, bool en)
@@ -3975,6 +4050,12 @@ static int smbchg_external_otg_regulator_enable(struct regulator_dev *rdev)
 		return rc;
 	}
 
+	rc = smbchg_set_usbc_voltage(chip, USBC_5V_MODE);
+	if (rc < 0) {
+		SMB_ERR(chip,
+			"Couldn't set 5V USBC Voltage rc=%d\n", rc);
+	}
+
 	rc = smbchg_sec_masked_write(chip,
 				chip->usb_chgpth_base + USBIN_CHGR_CFG,
 				0xFF, USBIN_ADAPTER_9V);
@@ -4922,6 +5003,11 @@ static void handle_usb_insertion(struct smbchg_chip *chip)
 	if (chip->typec_psy)
 		update_typec_status(chip);
 	smbchg_change_usb_supply_type(chip, usb_supply_type);
+
+	rc = smbchg_set_usbc_voltage(chip, USBC_9V_MODE);
+		if (rc < 0)
+			SMB_ERR(chip,
+				"Couldn't set USBC Voltage rc=%d\n", rc);
 
 	/* Only notify USB if it's not a charger */
 	if (usb_supply_type == POWER_SUPPLY_TYPE_USB ||
