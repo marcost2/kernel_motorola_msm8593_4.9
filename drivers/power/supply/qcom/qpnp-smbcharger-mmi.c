@@ -147,6 +147,7 @@ struct smbchg_chip {
 	bool				vbat_above_headroom;
 	bool				force_aicl_rerun;
 	bool				hvdcp3_supported;
+	bool 				hvdcp_det_done;
 	bool				allow_hvdcp3_detection;
 	bool				restricted_charging;
 	bool				skip_usb_suspend_for_fake_battery;
@@ -184,6 +185,7 @@ struct smbchg_chip {
 	int				wake_reasons;
 	int				previous_soc;
 	int				usb_online;
+	int 			charger_rate;
 	bool				dc_present;
 	bool				usb_present;
 	bool				batt_present;
@@ -1142,6 +1144,31 @@ static int get_prop_batt_voltage_max_design(struct smbchg_chip *chip)
 	return uv;
 }
 
+#define DEFAULT_CHARGE_FULL_DESIGN	3000000
+static int get_prop_charge_full_design(struct smbchg_chip *chip)
+{
+	int uah, rc;
+	rc = get_property_from_fg(chip,
+			POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN, &uah);
+	if (rc || (uah <= 0)) {
+		SMB_DBG(chip, "Couldn't get full design rc = %d\n", rc);
+		uah = DEFAULT_CHARGE_FULL_DESIGN;
+	}
+	return uah;
+}
+#define DEFAULT_CYCLE_COUNT	0
+static int get_prop_cycle_count(struct smbchg_chip *chip)
+{
+	int count, rc;
+	rc = get_property_from_fg(chip,
+			POWER_SUPPLY_PROP_CYCLE_COUNT, &count);
+	if (rc) {
+		SMB_DBG(chip, "Couldn't get cyclec count rc = %d\n", rc);
+		count = DEFAULT_CYCLE_COUNT;
+	}
+	return count;
+}
+
 static int get_prop_batt_health(struct smbchg_chip *chip)
 {
 	if (chip->batt_hot)
@@ -2051,6 +2078,60 @@ static int smbchg_get_aicl_level_ma(struct smbchg_chip *chip)
 	return chip->tables.usb_ilim_ma_table[reg];
 }
 
+
+#define WEAK_CHRG_THRSH 450
+#define TURBO_CHRG_THRSH 2000
+static void smbchg_rate_check(struct smbchg_chip *chip)
+{
+	int prev_chg_rate = chip->charger_rate;
+	char *charge_rate[] = {
+		"None", "Normal", "Weak", "Turbo"
+	};
+	union power_supply_propval pval = {0, };
+	int cl_usbc = 0, rc;
+
+	if (!is_usb_present(chip)) {
+		/*if ((chip->ebchg_state != EB_DISCONN) &&
+		    (chip->turbo_pwr_ebsrc == TURBO_EBSRC_VALID))
+			chip->charger_rate = POWER_SUPPLY_CHARGE_RATE_TURBO;
+		else if (is_usbeb_present(chip)) {
+			 if (chip->cl_ebsrc >= TURBO_CHRG_THRSH)
+				 chip->charger_rate =
+					 POWER_SUPPLY_CHARGE_RATE_TURBO;
+			 else
+				 chip->charger_rate =
+					 POWER_SUPPLY_CHARGE_RATE_NORMAL;
+		} else if (is_wls_present(chip))
+			chip->charger_rate = POWER_SUPPLY_CHARGE_RATE_NORMAL;
+		else*/
+		chip->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
+		return;
+	}
+
+	/*if (!chip->usb_insert_bc1_2)
+		return;*/
+	rc = power_supply_get_property(chip->typec_psy,POWER_SUPPLY_PROP_CURRENT_MAX,&pval);
+	if (rc < 0){
+		chip->charger_rate = POWER_SUPPLY_CHARGE_RATE_NONE;
+		return;
+	}
+	cl_usbc = pval.intval / 1000;
+	SMB_DBG(chip, "%d mA from USBC", cl_usbc);
+	if (chip->usb_supply_type == POWER_SUPPLY_TYPE_USB_HVDCP_3 || cl_usbc >= TURBO_CHRG_THRSH)
+		chip->charger_rate = POWER_SUPPLY_CHARGE_RATE_TURBO;
+	else if (!chip->vbat_above_headroom &&
+		 chip->hvdcp_det_done && chip->aicl_complete &&
+		 (get_effective_result_locked(chip->usb_icl_votable) > WEAK_CHRG_THRSH) &&
+		 (smbchg_get_aicl_level_ma(chip) < WEAK_CHRG_THRSH))
+		chip->charger_rate = POWER_SUPPLY_CHARGE_RATE_WEAK;
+	else
+		chip->charger_rate =  POWER_SUPPLY_CHARGE_RATE_NORMAL;
+
+	if (prev_chg_rate != chip->charger_rate)
+		SMB_ERR(chip, "%s Charger Detected\n",
+			charge_rate[chip->charger_rate]);
+
+}
 static void smbchg_parallel_usb_disable(struct smbchg_chip *chip)
 {
 	struct power_supply *parallel_psy = get_parallel_psy(chip);
@@ -4641,13 +4722,14 @@ static void smbchg_hvdcp_det_work(struct work_struct *work)
 			power_supply_set_property(chip->batt_psy,POWER_SUPPLY_PROP_DP_DM,&pval);
 		}
 		else{
-		smbchg_change_usb_supply_type(chip,
+			smbchg_change_usb_supply_type(chip,
 				POWER_SUPPLY_TYPE_USB_HVDCP);
 		}
 		if (chip->batt_psy)
 			power_supply_changed(chip->batt_psy);
 		smbchg_aicl_deglitch_wa_check(chip);
 	}
+	chip->hvdcp_det_done = true;
 	smbchg_relax(chip, PM_DETECT_HVDCP);
 }
 
@@ -4774,6 +4856,7 @@ static void handle_usb_removal(struct smbchg_chip *chip)
 	/* cancel/wait for hvdcp pending work if any */
 	cancel_delayed_work_sync(&chip->hvdcp_det_work);
 	smbchg_relax(chip, PM_DETECT_HVDCP);
+	chip->hvdcp_det_done = false;
 	smbchg_change_usb_supply_type(chip, POWER_SUPPLY_TYPE_UNKNOWN);
 	extcon_set_cable_state_(chip->extcon, EXTCON_USB, chip->usb_present);
 	smbchg_request_dpdm(chip, false);
@@ -4872,6 +4955,7 @@ static void handle_usb_insertion(struct smbchg_chip *chip)
 	}
 
 	smbchg_detect_parallel_charger(chip);
+	chip->charger_rate =  POWER_SUPPLY_CHARGE_RATE_NORMAL;
 
 	if (chip->parallel.avail && chip->aicl_done_irq
 			&& !chip->enable_aicl_wake) {
@@ -5976,6 +6060,12 @@ static enum power_supply_property smbchg_battery_properties[] = {
 	POWER_SUPPLY_PROP_SAFETY_TIMER_ENABLE,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_MAX,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_SETTLED,
+	POWER_SUPPLY_PROP_TEMP_HOTSPOT,
+	POWER_SUPPLY_PROP_CHARGE_RATE,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_AGE,
+	/*POWER_SUPPLY_PROP_EXTERN_STATE,*/
 	POWER_SUPPLY_PROP_INPUT_CURRENT_NOW,
 	POWER_SUPPLY_PROP_FLASH_ACTIVE,
 	POWER_SUPPLY_PROP_FLASH_TRIGGER,
@@ -6158,6 +6248,16 @@ static int smbchg_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_RESTRICTED_CHARGING:
 		val->intval = (int)chip->restricted_charging;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_RATE:
+		smbchg_rate_check(chip);
+		val->intval = chip->charger_rate;
+		break;
+	case POWER_SUPPLY_PROP_CYCLE_COUNT:
+		val->intval = get_prop_cycle_count(chip);
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+		val->intval = get_prop_charge_full_design(chip);
 		break;
 	/* properties from fg */
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -8493,6 +8593,7 @@ static int smbchg_probe(struct platform_device *pdev)
 	chip->typec_psy = typec_psy;
 	chip->fake_battery_soc = -EINVAL;
 	chip->usb_online = -EINVAL;
+	chip->charger_rate =  POWER_SUPPLY_CHARGE_RATE_NONE;
 	dev_set_drvdata(&pdev->dev, chip);
 
 	spin_lock_init(&chip->sec_access_lock);
