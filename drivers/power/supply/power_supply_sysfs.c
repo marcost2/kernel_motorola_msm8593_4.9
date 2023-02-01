@@ -276,6 +276,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(temp_cold),
 	POWER_SUPPLY_ATTR(temp_hot),
 	POWER_SUPPLY_ATTR(system_temp_level),
+	POWER_SUPPLY_ATTR(num_system_temp_levels),
 	POWER_SUPPLY_ATTR(resistance),
 	POWER_SUPPLY_ATTR(resistance_capacitive),
 	POWER_SUPPLY_ATTR(resistance_id),
@@ -360,6 +361,8 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(switch_state),
 	POWER_SUPPLY_ATTR(wakeup),
 	POWER_SUPPLY_ATTR(mask_int),
+	POWER_SUPPLY_ATTR(system_temp_in_level),
+	POWER_SUPPLY_ATTR(num_system_temp_in_levels),
 	/* Local extensions of type int64_t */
 	POWER_SUPPLY_ATTR(charge_counter_ext),
 	/* Properties of type `const char *' */
