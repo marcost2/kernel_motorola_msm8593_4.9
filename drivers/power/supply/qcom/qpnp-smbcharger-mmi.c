@@ -265,6 +265,7 @@ struct smbchg_chip {
 	struct work_struct		usb_set_online_work;
 	struct delayed_work		vfloat_adjust_work;
 	struct delayed_work		hvdcp_det_work;
+	struct delayed_work		boost_vbus_work;
 	spinlock_t			sec_access_lock;
 	struct mutex			therm_lvl_lock;
 	struct mutex			usb_set_online_lock;
@@ -4713,6 +4714,78 @@ out:
 	return rc;
 }
 
+#define VBUS_INPUT_VOLTAGE_TARGET 9000
+#define VBUS_INPUT_VOLTAGE_NOM ((VBUS_INPUT_VOLTAGE_TARGET) - 200)
+#define VBUS_INPUT_VOLTAGE_MAX ((VBUS_INPUT_VOLTAGE_TARGET) + 200)
+#define VBUS_INPUT_VOLTAGE_MIN 4000
+#define VBUS_PULSE_MS 5000
+#define MAX_INPUT_PWR 15000
+static void smbchg_boost_vbus_work(struct work_struct *work){
+	struct smbchg_chip *chip = container_of(work,
+				struct smbchg_chip,
+				boost_vbus_work.work);
+	struct qpnp_vadc_result results;
+	int vbus_mv, rc = 0, i;
+	bool vbus_inc_now = false;
+	union power_supply_propval pval = {0, };
+	static int vbus_inc_mv = VBUS_INPUT_VOLTAGE_TARGET;
+
+	SMB_DBG(chip, "Boosting VBUS!");
+
+	if (!is_usb_present(chip) || (chip->usb_supply_type != POWER_SUPPLY_TYPE_USB_HVDCP_3)){
+		vbus_inc_mv = VBUS_INPUT_VOLTAGE_TARGET;
+		return;
+	}
+
+	for(i = 0; (i < 10); i++ ){
+		rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
+		if (rc)
+			SMB_ERR(chip, "Unable to read prev usbin rc=%d\n", rc);
+		else
+			break;
+	}
+
+	vbus_mv = (int)div_u64(results.physical, 1000);
+
+	if (vbus_inc_mv > VBUS_INPUT_VOLTAGE_NOM) {
+		if ((vbus_mv < vbus_inc_mv) &&
+		    (vbus_mv >= VBUS_INPUT_VOLTAGE_MIN)) {
+			SMB_WARN(chip, "HVDCP Input %d mV Low, Increase\n",
+				 vbus_mv);
+			pval.intval = POWER_SUPPLY_DP_DM_DP_PULSE;
+			vbus_inc_now = true;
+		} else if (vbus_mv > VBUS_INPUT_VOLTAGE_MAX) {
+			vbus_inc_mv -= 50;
+			SMB_WARN(chip, "HVDCP Input %d mV High, Decrease\n",
+				 vbus_mv);
+			pval.intval = POWER_SUPPLY_DP_DM_DM_PULSE;
+		}
+	}
+	power_supply_set_property(chip->batt_psy, POWER_SUPPLY_PROP_DP_DM, &pval);
+	msleep(500);
+
+	for(i = 0; (i < 10); i++ ){
+		rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
+		if (rc)
+			SMB_ERR(chip, "Unable to read post usbin rc=%d\n", rc);
+		else
+			break;
+	}
+
+	vbus_mv = (int)div_u64(results.physical, 1000);
+	SMB_WARN(chip, "HVDCP: End Voltage %d mV\n", vbus_mv);
+
+	rc = vote(chip->usb_icl_votable,HVDCP_ICL_VOTER, true, MAX_INPUT_PWR/div_u64(results.physical, 1000000));
+	SMB_WARN(chip, "%d", MAX_INPUT_PWR/div_u64(results.physical, 1000000));
+	if(rc < 0){
+		SMB_WARN(chip, "FAILED TO PROTECT MAX_PWR");
+		vbus_inc_now = false;
+	}
+	if(vbus_inc_now)
+		schedule_delayed_work(&chip->boost_vbus_work,msecs_to_jiffies(VBUS_PULSE_MS));
+	else
+		smbchg_relax(chip, PM_DETECT_HVDCP);
+}
 #define HVDCP_ADAPTER_SEL_MASK	SMB_MASK(5, 4)
 #define HVDCP_5V		0x00
 #define HVDCP_9V		0x10
@@ -4764,7 +4837,7 @@ static void smbchg_hvdcp_det_work(struct work_struct *work)
 				struct smbchg_chip,
 				hvdcp_det_work.work);
 	int rc;
-	int st_volt_mv, en_volt_mv;
+	int st_volt_mv, en_volt_mv,i;
 	struct qpnp_vadc_result results;
 	union power_supply_propval pval = {0, };
 
@@ -4783,9 +4856,12 @@ static void smbchg_hvdcp_det_work(struct work_struct *work)
 		pval.intval = POWER_SUPPLY_DP_DM_PREPARE;
 		power_supply_set_property(chip->batt_psy,POWER_SUPPLY_PROP_DP_DM, &pval);
 
-		rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
-		if (rc) {
-			SMB_ERR(chip, "Unable to read usbin rc=%d\n", rc);
+		for(i = 0; (i < 10); i++ ){
+			rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
+			if (rc)
+				SMB_ERR(chip, "Unable to read usbin rc=%d\n", rc);
+			else
+				break;
 		}
 
 		st_volt_mv = (int)div_u64(results.physical, 1000);
@@ -4797,9 +4873,12 @@ static void smbchg_hvdcp_det_work(struct work_struct *work)
 
 		/*chip->vbus_inc_cnt++; Revisit when doing HB*/
 
-		rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
-		if (rc) {
-			SMB_ERR(chip, "Unable to read usbin rc=%d\n", rc);
+		for(i = 0; (i < 10); i++ ){
+			rc = qpnp_vadc_read(chip->usb_vadc_dev, USBIN, &results);
+			if (rc)
+				SMB_ERR(chip, "Unable to read usbin rc=%d\n", rc);
+			else
+				break;
 		}
 
 		en_volt_mv = (int)div_u64(results.physical, 1000);
@@ -4819,7 +4898,10 @@ static void smbchg_hvdcp_det_work(struct work_struct *work)
 		smbchg_aicl_deglitch_wa_check(chip);
 	}
 	chip->hvdcp_det_done = true;
-	smbchg_relax(chip, PM_DETECT_HVDCP);
+	cancel_delayed_work_sync(&chip->boost_vbus_work);
+	smbchg_stay_awake(chip, PM_DETECT_HVDCP);
+	schedule_delayed_work(&chip->boost_vbus_work,
+		msecs_to_jiffies(VBUS_PULSE_MS));
 }
 
 static int set_usb_psy_dp_dm(struct smbchg_chip *chip, int state)
@@ -4944,6 +5026,9 @@ static void handle_usb_removal(struct smbchg_chip *chip)
 		chip->typec_current_ma = 0;
 	/* cancel/wait for hvdcp pending work if any */
 	cancel_delayed_work_sync(&chip->hvdcp_det_work);
+	cancel_delayed_work_sync(&chip->boost_vbus_work);
+	/* Rescind HVDCP vote*/
+	rc = vote(chip->usb_icl_votable,HVDCP_ICL_VOTER, false, 0);
 	smbchg_relax(chip, PM_DETECT_HVDCP);
 	chip->hvdcp_det_done = false;
 	smbchg_change_usb_supply_type(chip, POWER_SUPPLY_TYPE_UNKNOWN);
@@ -8677,6 +8762,7 @@ static int smbchg_probe(struct platform_device *pdev)
 			smbchg_parallel_usb_en_work);
 	INIT_DELAYED_WORK(&chip->vfloat_adjust_work, smbchg_vfloat_adjust_work);
 	INIT_DELAYED_WORK(&chip->hvdcp_det_work, smbchg_hvdcp_det_work);
+	INIT_DELAYED_WORK(&chip->boost_vbus_work, smbchg_boost_vbus_work);
 	init_completion(&chip->src_det_lowered);
 	init_completion(&chip->src_det_raised);
 	init_completion(&chip->usbin_uv_lowered);
