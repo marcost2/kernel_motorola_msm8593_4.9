@@ -3263,9 +3263,16 @@ static int smbchg_calc_max_flash_current(struct smbchg_chip *chip)
 		return 0;
 	}
 
-	rc = msm_bcl_read(BCL_PARAM_CURRENT, &ibat_now);
+	/*rc = msm_bcl_read(BCL_PARAM_CURRENT, &ibat_now);
 	if (rc) {
 		SMB_DBG(chip, "BCL current read failed: %d\n", rc);
+		return 0;
+	}*/
+
+	rc = get_property_from_fg(chip,
+			POWER_SUPPLY_PROP_CURRENT_NOW, &ibat_now);
+	if (rc) {
+		SMB_DBG(chip, "bms psy does not support current_now\n");
 		return 0;
 	}
 
