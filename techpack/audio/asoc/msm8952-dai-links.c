@@ -559,7 +559,6 @@ static struct snd_soc_dai_link msm8952_madera_be_dai[] = {
 		.platform_name = "msm-pcm-hostless",
 		.codec_name = "cs47l35-codec",
 		.codec_dai_name = "cs47l35-slim2",
-		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.id = MSM_BACKEND_DAI_SLIMBUS_1_TX,
 		.be_hw_params_fixup = msm_slim_1_tx_be_hw_params_fixup,
