@@ -45,9 +45,6 @@
 #ifdef CONFIG_MODS_MODBUS_EXT
 #include <linux/mods/modbus_ext.h>
 #endif
-#ifdef CONFIG_SND_SOC_OPALUM
-#include <sound/ospl2xx.h>
-#endif
 
 #define DRV_NAME "msm8952-slimbus-wcd"
 
@@ -3862,6 +3859,7 @@ static const struct snd_soc_dapm_widget msm8952_tasha_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic6", NULL),
 };
 
+
 #ifdef CONFIG_SND_SOC_MADERA
 static const struct snd_soc_dapm_widget msm8952_madera_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("MCLK", -1,  SND_SOC_NOPM, 0, 0,
@@ -4116,14 +4114,14 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	ret = snd_soc_dapm_new_controls(dapm, msm8952_madera_dapm_widgets,
-		ARRAY_SIZE(msm8952_madera_dapm_widgets));
+			ARRAY_SIZE(msm8952_madera_dapm_widgets));
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to add dapm widgets %d\n", ret);
 		return ret;
 	}
 
 	ret = snd_soc_dapm_add_routes(dapm, madera_audio_routes,
-		ARRAY_SIZE(madera_audio_routes));
+			ARRAY_SIZE(madera_audio_routes));
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to add audio routes %d\n", ret);
 		return ret;
@@ -4167,9 +4165,9 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(dapm, "SPKOUTP");
 	snd_soc_dapm_ignore_suspend(dapm, "SPKDAT1L");
 	snd_soc_dapm_ignore_suspend(dapm, "SPKDAT1R");
-	/*snd_soc_dapm_ignore_suspend(dapm, "DSP2 Virtual Output");
-	snd_soc_dapm_ignore_suspend(dapm, "DSP3 Virtual Output");
-	snd_soc_dapm_ignore_suspend(dapm, "DSP Virtual Input"); Used only for AOV? */ 
+	/*snd_soc_dapm_ignore_suspend(dapm, "DSP2 Trigger Out");
+	snd_soc_dapm_ignore_suspend(dapm, "DSP3 Trigger Out");
+	snd_soc_dapm_ignore_suspend(dapm, "DSP Virtual Input");*/
 
 	snd_soc_dapm_ignore_suspend(dapm, "Slim1 Playback");
 	snd_soc_dapm_ignore_suspend(dapm, "Slim1 Capture");
@@ -4199,11 +4197,6 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-#ifdef CONFIG_SND_SOC_OPALUM
-	ret = ospl2xx_init(rtd);
-	if (ret != 0)
-		pr_err("%s Cannot set Opalum controls %d\n", __func__, ret);
-#endif
 	snd_soc_dapm_sync(dapm);
 
 	snd_soc_dapm_force_enable_pin(dapm, "SYSCLK");
@@ -4311,7 +4304,6 @@ int madera_cs35l35_dai_init(struct snd_soc_pcm_runtime *rtd)
 		SND_SOC_CLOCK_OUT);
 	snd_soc_dapm_ignore_suspend(dapm, "AMP Playback");
 	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 #endif
@@ -4473,8 +4465,9 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 	const char *ext_pa = "qcom,msm-ext-pa";
 	const char *ext_pa_str = NULL;
 	int num_strings = 0;
+	int i;
 	struct resource *muxsel;
-	int i, ret = 0;
+	int ret = 0;
 	pdata = devm_kzalloc(&pdev->dev,
 			sizeof(struct msm8952_asoc_mach_data), GFP_KERNEL);
 	if (!pdata)
@@ -4608,21 +4601,10 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, pdata);
 
-#ifndef CONFIG_SND_SOC_MADERA
 	ret = snd_soc_of_parse_audio_routing(card,
 			"qcom,audio-routing");
 	if (ret)
 		goto err;
-#endif
-
-#ifdef CONFIG_SND_SOC_MADERA
-	ret = snd_soc_of_parse_audio_routing(card, "cs47l35,dapm-routing");
-	if (ret) {
-		dev_err(&pdev->dev, "parse dapm-routing failed, err:%d\n",
-			ret);
-		goto err;
-	}
-#endif
 	ret = msm8952_populate_dai_link_component_of_node(card);
 	if (ret) {
 		ret = -EPROBE_DEFER;
@@ -4643,6 +4625,8 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
 			ret);
 		goto err;
 	}
+	pr_info("%s: sound card register successfully\n", __func__);
+
 	num_strings = of_property_count_strings(pdev->dev.of_node,
 						ext_pa);
 	if (num_strings < 0) {
