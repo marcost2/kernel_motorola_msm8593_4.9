@@ -228,8 +228,8 @@
 			>;
 
 			pinctrl-names = "probe", "active";
-			pinctrl-0 = <&marley_irq_default &marley_reset_default>;
-			pinctrl-1 = <&marley_irq_default &marley_reset_default &cs47l35_defaults>;
+			pinctrl-0 = <&marley_irq_default &marley_reset_default &madera_mclk_default>;
+			pinctrl-1 = <&marley_irq_default &marley_reset_default &cs47l35_defaults &madera_mclk_default>;
 
 			AVDD-supply = <&pm8953_l6>;
 			DBVDD1-supply = <&pm8953_l6>;
@@ -527,6 +527,14 @@
 
 	gpio@c700 { /* GPIO 8 - USB_SS_MOD_MPHY_AP_EN */
 		qcom,vin-sel = <3>;		/* VIN3 */
+	};
+	madera_mclk {
+		madera_mclk_default: madera_mclk_default{
+			pins = "gpio2"; /* GPIO 2 */
+			function = "dtest3";
+			output-low;
+			bias-disable; /* No Pull */
+		};
 	};
 };
 
