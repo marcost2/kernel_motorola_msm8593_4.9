@@ -221,9 +221,9 @@
 			cirrus,gpsw = <1 0>;
 
 			cirrus,inmode = <
-				MADERA_INMODE_DIFF MADERA_INMODE_DIFF
-				MADERA_INMODE_DMIC MADERA_INMODE_DMIC
-				MADERA_INMODE_DIFF MADERA_INMODE_DIFF
+				MADERA_INMODE_DIFF MADERA_INMODE_DIFF /* IN1A differential */
+				MADERA_INMODE_DIFF MADERA_INMODE_DIFF /* IN1B differential */
+				MADERA_INMODE_DMIC MADERA_INMODE_DMIC /* IN2 digital */
 				0 0 	/* not used on this codec */
 			>;
 
