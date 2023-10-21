@@ -426,14 +426,6 @@
 			"MYDP", "HDMI DBA Playback";
 	};
 
-	ospl {
-		compatible = "mmi,ospl2xx";
-		status = "ok";
-		mmi,ospl-tune-index = <4 5 6 7>;
-		mmi,ospl-afe-port-id = <16384 16387>;
-		mmi,ospl-left-feedback;
-	};
-
 	lpa: qcom,msm-pcm-lpa {
 		compatible = "qcom,msm-pcm-lpa";
 	};
