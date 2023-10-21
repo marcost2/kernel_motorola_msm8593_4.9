@@ -45,9 +45,6 @@
 #ifdef CONFIG_MODS_MODBUS_EXT
 #include <linux/mods/modbus_ext.h>
 #endif
-#ifdef CONFIG_SND_SOC_OPALUM
-#include <sound/ospl2xx.h>
-#endif
 
 #define DRV_NAME "msm8952-slimbus-wcd"
 
@@ -4198,12 +4195,6 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 			__func__, ret);
 		return ret;
 	}
-
-#ifdef CONFIG_SND_SOC_OPALUM
-	ret = ospl2xx_init(rtd);
-	if (ret != 0)
-		pr_err("%s Cannot set Opalum controls %d\n", __func__, ret);
-#endif
 	snd_soc_dapm_sync(dapm);
 
 	snd_soc_dapm_force_enable_pin(dapm, "SYSCLK");
