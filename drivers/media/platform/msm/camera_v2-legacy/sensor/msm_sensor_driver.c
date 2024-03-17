@@ -899,17 +899,6 @@ int32_t msm_sensor_driver_probe(void *setting,
 	camera_info->sensor_model_id =
 		slave_info->sensor_id_info.sensor_model_id;
 
-	if(strncmp(slave_info->sensor_name,"mot_s5k2l7",strlen(slave_info->sensor_name)) == 0){
-		camera_info->sensor_model_id = 0x5151;
-		camera_info->sensor_model_id_reg_addr = 0x16;
-	}
-	else if(strncmp(slave_info->sensor_name,"mot_s5k2l7sa",strlen(slave_info->sensor_name)) == 0){
-		camera_info->sensor_model_id = 0x6fff;
-		camera_info->sensor_model_id_reg_addr = 0x16;
-	}
-	
-	
-
 	/* Fill CCI master, slave address and CCI default params */
 	if (!s_ctrl->sensor_i2c_client) {
 		pr_err("failed: sensor_i2c_client %pK",
