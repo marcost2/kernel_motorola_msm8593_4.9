@@ -752,6 +752,10 @@ int32_t msm_sensor_driver_probe(void *setting,
 			slave_info32->sensor_id_info.sensor_id_mask;
 		slave_info->sensor_id_info.sensor_id =
 				slave_info32->sensor_id_info.sensor_id;
+		slave_info->sensor_id_info.sensor_model_id_reg_addr =
+				slave_info32->sensor_id_info.sensor_model_id_reg_addr;
+		slave_info->sensor_id_info.sensor_model_id =
+				slave_info32->sensor_id_info.sensor_model_id;
 
 		slave_info->slave_addr = slave_info32->slave_addr;
 		slave_info->slave_addr2 = slave_info32->slave_addr2;
