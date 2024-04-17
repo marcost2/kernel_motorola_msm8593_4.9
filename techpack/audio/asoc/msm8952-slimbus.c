@@ -3793,41 +3793,16 @@ static int msm8952_mclk_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-#ifdef CONFIG_SND_SOC_MADERA
-	int ret;
-#endif
 	pr_debug("%s: event = %d\n", __func__, event);
 
+#ifndef CONFIG_SND_SOC_MADERA
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-#ifdef CONFIG_SND_SOC_MADERA
-		ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
-			MADERA_FLL_SRC_SLIMCLK,
-			1536000, MADERA_SYSCLK_RATE);
-		if (ret != 0) {
-			dev_err(codec->dev, "Failed to set MCLK2 %d\n",
-				ret);
-			return ret;
-		}
-		break;
-#else
 		return msm8952_enable_codec_mclk(codec, 1, true);
-#endif
 	case SND_SOC_DAPM_POST_PMD:
-#ifdef CONFIG_SND_SOC_MADERA
-		ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_REFCLK,
-			MADERA_FLL_SRC_MCLK2,
-			32768, MADERA_SYSCLK_RATE);
-		if (ret != 0) {
-			dev_err(codec->dev, "Failed to set MCLK2 %d\n",
-				ret);
-			return ret;
-		}
-		break;
-#else
 		return msm8952_enable_codec_mclk(codec, 0, true);
-#endif
 	}
+#endif
 	return 0;
 }
 
@@ -4096,6 +4071,15 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
+	ret = snd_soc_codec_set_pll(codec, MADERA_FLL1_SYNCCLK,
+			MADERA_FLL_SRC_SLIMCLK,
+			1536000, MADERA_SYSCLK_RATE);
+	if (ret != 0) {
+			dev_err(codec->dev, "Failed to set FLL1SYNCLK %d\n",
+				ret);
+			return ret;
+	}
+
 	ret = snd_soc_codec_set_sysclk(codec, MADERA_CLK_SYSCLK_1,
 		MADERA_CLK_SRC_FLL1, MADERA_SYSCLK_RATE,
 		SND_SOC_CLOCK_IN);
@@ -4203,11 +4187,13 @@ int madera_dai_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set LDO2 to 3.1V */
 	snd_soc_write(codec, MADERA_LDO2_CONTROL_1, 0x4A4);
 
+#ifdef ADDISON
 	/* Disable the MCLK */
 	snd_soc_update_bits(codec, MADERA_SYSTEM_CLOCK_1,
 		1 << MADERA_SYSCLK_ENA_SHIFT, 0);
 	snd_soc_update_bits(codec, MADERA_OUTPUT_SYSTEM_CLOCK,
 		1 << MADERA_OPCLK_ENA_SHIFT, 0);
+#endif
 
 	return 0;
 }
