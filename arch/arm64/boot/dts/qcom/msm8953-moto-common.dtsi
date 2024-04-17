@@ -178,12 +178,10 @@
 		};
 
 		fusb302@22 {
-			compatible = "fcs,fusb302";
+			compatible = "fairchild,fusb302";
 			reg = <0x22>;
-			interrupt-parent = <&tlmm>;
-			interrupts = <67 IRQ_TYPE_LEVEL_LOW>;
-			fcs,int_n = <&tlmm 67 1>; /* FUSB302_INT_N, in */
-			extcon = <&qpnp_smbcharger>;
+			gpios = <&tlmm 67 1>; /* FUSB302_INT_N, in */
+			fusb,gpio-labels = "gpio_fusb_int_n";
 			pinctrl-names = "default", "active";
 			pinctrl-0 = <&fusb302_int_default>;
 			pinctrl-1 = <&fusb302_int_active>;
@@ -1164,9 +1162,9 @@
 	qcom,rparasitic-uohm = <100000>;
 	qcom,bms-psy-name = "bms";
 	qcom,external-typec;
-	qcom,typec-psy-name = "fusb302-typec-source";
-	qcom,eb-batt-psy-name = "gb_battery";
-	qcom,eb-pwr-psy-name = "gb_ptp";
+	qcom,typec-psy-name = "usbc";
+	/*qcom,eb-batt-psy-name = "gb_battery";
+	qcom,eb-pwr-psy-name = "gb_ptp"; TBD*/ 
 	qcom,charge-unknown-battery;
 	qcom,chg-thermal-mitigation = <3000 0>,
 				      <2500 0>,
