@@ -47,6 +47,7 @@
 #define MADERA_HPDET_MAX_OHM		10000
 #define MADERA_HPDET_MAX_HOHM		(MADERA_HPDET_MAX_OHM * 100)
 #define MADERA_HP_SHORT_IMPEDANCE_MIN	4
+#define MADERA_JD2_IRQ_CLAMP_MODE 0x0
 
 #define MADERA_HPDET_DEBOUNCE_MS	500
 #define MADERA_DEFAULT_MICD_TIMEOUT_MS	2000
@@ -907,6 +908,16 @@ static const char *madera_extcon_get_micbias_src(struct madera_extcon *info)
 		}
 		break;
 	case CS47L35:
+		switch (bias) {
+		case 1:
+		case 2:
+			return "MICBIAS1";
+		case 3:
+			return "MICBIAS2";
+		default:
+			return "MICVDD";
+		}
+		break;
 	case CS47L85:
 	case WM1840:
 		return NULL;
@@ -1910,10 +1921,12 @@ int madera_micd_start(struct madera_extcon *info)
 	/* Microphone detection can't use idle mode */
 	pm_runtime_get_sync(info->dev);
 
-	dev_dbg(info->dev, "Disabling MICD_OVD\n");
-	regmap_update_bits(madera->regmap,
-			   MADERA_MICD_CLAMP_CONTROL,
-			   MADERA_MICD_CLAMP_OVD_MASK, 0);
+	if (!info->pdata->jd_alt_jd2){
+		dev_dbg(info->dev, "Disabling MICD_OVD\n");
+		regmap_update_bits(madera->regmap,
+				   MADERA_MICD_CLAMP_CONTROL,
+				   MADERA_MICD_CLAMP_OVD_MASK, 0);
+	}
 
 	ret = regulator_enable(info->micvdd);
 	if (ret)
@@ -1951,6 +1964,10 @@ EXPORT_SYMBOL_GPL(madera_micd_start);
 void madera_micd_stop(struct madera_extcon *info)
 {
 	struct madera *madera = info->madera;
+	int ret;
+	const char *src_widget =
+			madera_extcon_get_micbias_src(info);
+	struct snd_soc_dapm_context *dapm = madera->dapm;
 
 	regmap_update_bits(madera->regmap, MADERA_MIC_DETECT_1_CONTROL_1,
 			   MADERA_MICD_ENA, 0);
@@ -1970,11 +1987,20 @@ void madera_micd_stop(struct madera_extcon *info)
 		break;
 	}
 
-	regulator_disable(info->micvdd);
+	if (info->pdata->jd_alt_jd2){
+		ret = snd_soc_dapm_enable_pin(dapm, src_widget);
+		if (ret != 0)
+			dev_warn(info->dev, "Failed to enable %s: %d\n",
+				 src_widget, ret);
+		snd_soc_dapm_sync(dapm);
+	}
+	else {
+		regulator_disable(info->micvdd);
 
-	dev_dbg(info->dev, "Enabling MICD_OVD\n");
-	regmap_update_bits(madera->regmap, MADERA_MICD_CLAMP_CONTROL,
-			   MADERA_MICD_CLAMP_OVD_MASK, MADERA_MICD_CLAMP_OVD);
+		dev_dbg(info->dev, "Enabling MICD_OVD\n");
+		regmap_update_bits(madera->regmap, MADERA_MICD_CLAMP_CONTROL,
+				   MADERA_MICD_CLAMP_OVD_MASK, MADERA_MICD_CLAMP_OVD);
+	}
 
 	pm_runtime_mark_last_busy(info->dev);
 	pm_runtime_put_autosuspend(info->dev);
@@ -2114,7 +2140,7 @@ int madera_micd_mic_reading(struct madera_extcon *info, int val)
 	if (ohms > MADERA_MICROPHONE_MAX_OHM) {
 		dev_warn(info->dev, "Detected open circuit\n");
 		info->have_mic = info->pdata->micd_open_circuit_declare;
-		goto done;
+		return -EAGAIN;
 	}
 
 	/* If we got a high impedence we should have a headset, report it. */
@@ -2713,6 +2739,9 @@ static void madera_extcon_process_accdet_node(struct madera_extcon *info,
 	pdata->jd_use_jd2 = fwnode_property_present(node,
 						    "cirrus,jd-use-jd2");
 
+	pdata->jd_alt_jd2 = fwnode_property_present(node,
+							"cirrus,jd-alt-jd2");
+
 	pdata->jd_invert = fwnode_property_present(node,
 						   "cirrus,jd-invert");
 
@@ -2950,6 +2979,8 @@ static void madera_extcon_set_micd_clamp_mode(struct madera_extcon *info)
 	 */
 	if (info->pdata->micd_clamp_mode) {
 		clamp_ctrl_val = info->pdata->micd_clamp_mode;
+	} else if (info->pdata->jd_alt_jd2){
+		clamp_ctrl_val = MADERA_JD2_IRQ_CLAMP_MODE;
 	} else if (info->pdata->jd_use_jd2) {
 		if (info->pdata->jd_invert)
 			clamp_ctrl_val = MADERA_MICD_CLAMP_MODE_JD1H_JD2H;
@@ -3089,6 +3120,7 @@ static int madera_extcon_probe(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
 	struct madera_accdet_pdata *pdata = &madera->pdata.accdet[0];
+	const char *src_widget;
 	struct madera_extcon *info;
 	unsigned int debounce_val, analog_val;
 	int jack_irq_fall, jack_irq_rise;
@@ -3296,7 +3328,8 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_input;
 
-	madera_extcon_set_micd_clamp_mode(info);
+	if (!info->pdata->jd_alt_jd2)
+		madera_extcon_set_micd_clamp_mode(info);
 
 	if ((info->num_micd_modes > 2) && !info->micd_pol_gpio)
 		dev_warn(info->dev, "Have >1 mic_configs but no pol_gpio\n");
@@ -3379,6 +3412,11 @@ static int madera_extcon_probe(struct platform_device *pdev)
 		analog_val = MADERA_JD1_ENA | MADERA_JD2_ENA;
 		jack_irq_rise = MADERA_IRQ_MICD_CLAMP_RISE;
 		jack_irq_fall = MADERA_IRQ_MICD_CLAMP_FALL;
+	} else if (info->pdata->jd_alt_jd2) {
+		debounce_val = MADERA_JD1_DB | MADERA_JD2_DB;
+		analog_val = MADERA_JD1_ENA | MADERA_JD2_ENA;
+		jack_irq_rise = MADERA_IRQ_JD1_RISE;
+		jack_irq_fall = MADERA_IRQ_JD1_FALL;
 	} else {
 		debounce_val = MADERA_JD1_DB;
 		analog_val = MADERA_JD1_ENA;
@@ -3424,6 +3462,40 @@ static int madera_extcon_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(info->dev,
 			 "Failed to set MICVDD to bypass: %d\n", ret);
+
+
+	if (info->pdata->jd_alt_jd2) {
+		/*
+		 * Initial setting for a special case when JD2 pin tied to MICDET1.
+		 * disable Mic detect CLAMP,
+		 * enable MICD BIAS1,
+		 * set micbias 1A and 1B to float when disabled.
+		 */
+		ret = regulator_enable(info->micvdd);
+		if (ret != 0) {
+			dev_err(info->dev, "Failed to enable MICVDD: %d\n",
+				ret);
+		}
+		regmap_update_bits(madera->regmap,
+				   MADERA_MICD_CLAMP_CONTROL,
+				   MADERA_MICD_CLAMP_OVD_MASK, 0);
+		src_widget = madera_extcon_get_micbias_src(info);
+		ret = snd_soc_dapm_force_enable_pin(madera->dapm, src_widget);
+		if (ret != 0)
+			dev_warn(info->dev, "Failed to enable %s: %d\n",
+				 src_widget, ret);
+		snd_soc_dapm_sync(madera->dapm);
+		if (!strcmp(src_widget, "MICBIAS2"))
+			regmap_update_bits(madera->regmap,
+					   MADERA_MIC_BIAS_CTRL_5,
+					   MADERA_MICB2A_DISCH_MASK|
+					   MADERA_MICB2B_DISCH_MASK, 0x0);
+		else
+			regmap_update_bits(madera->regmap,
+					   MADERA_MIC_BIAS_CTRL_5,
+					   MADERA_MICB1A_DISCH_MASK|
+					   MADERA_MICB1B_DISCH_MASK, 0x0);
+	}
 
 	pm_runtime_put(&pdev->dev);
 

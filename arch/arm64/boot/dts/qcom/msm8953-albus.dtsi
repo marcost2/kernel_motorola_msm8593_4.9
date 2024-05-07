@@ -311,6 +311,7 @@
 					cirrus,micd-detect-debounce-ms = <300>;
 					cirrus,micd-bias-start-time = <8>;
 					cirrus,micd-rate = <6>;
+					cirrus,jd-alt-jd2;
 					cirrus,micd-ranges = <
 				 			100 226 /* HEADSETHOOK  */
 				 			150 582 /* VOICE_ASSIST */
