@@ -65,6 +65,9 @@ struct madera_accdet_pdata {
 	/** Set whether JD2 is used for jack detection */
 	bool jd_use_jd2;
 
+	/** Set whether JD2 is tied with MICDET */
+	bool jd_alt_jd2;
+
 	/** set to true if jackdet contact opens on insert */
 	bool jd_invert;
 
