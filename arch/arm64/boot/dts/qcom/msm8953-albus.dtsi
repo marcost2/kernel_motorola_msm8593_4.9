@@ -126,8 +126,9 @@
 			qcom,nq-ven = <&tlmm 89 0x00>;
 			qcom,nq-firm = <&tlmm 87 0x00>;
 
-			pinctrl-names = "default";
-			pinctrl-0 = <&nfc_irq_default &nfc_ven_default &nfc_firm_default>;
+			pinctrl-names = "nfc_active", "nfc_suspend";
+			pinctrl-0 = <&nfc_irq_active &nfc_disable_active>;
+			pinctrl-1 = <&nfc_irq_suspend &nfc_disable_suspend>;
 		};
 
 		drv2624: drv2624@5a {

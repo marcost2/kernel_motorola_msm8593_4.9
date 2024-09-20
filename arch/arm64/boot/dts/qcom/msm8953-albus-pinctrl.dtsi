@@ -72,30 +72,60 @@
 		};
 	};
 
+	nfc {
+		nfc_irq_active: nfc_irq_active {
 
-	nfc_irq_default: nfc_irq_default {
-		config {
-			pins = "gpio130";
-			drive-strength = <2>;
-			bias-pull-down;
+			mux {
+				pins = "gpio130";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio130";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
 		};
-	};
 
-	nfc_ven_default: nfc_ven_default {
-		config {
-			pins = "gpio89";
-			drive-strength = <2>;
-			bias-pull-down;
-			output-low;
+		nfc_irq_suspend: nfc_irq_suspend {
+			mux {
+				pins = "gpio130";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio130";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
 		};
-	};
 
-	nfc_firm_default: nfc_firm_default {
-		config {
-			pins = "gpio87";
-			drive-strength = <2>;
-			bias-pull-down;
-			output-low;
+		nfc_disable_active: nfc_disable_active {
+			mux {
+				/* 89: NFC ENABLE 87: FW DNLD */
+				pins = "gpio89", "gpio87";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio89", "gpio87";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+		};
+
+		nfc_disable_suspend: nfc_disable_suspend {
+			mux {
+				/* 89: NFC ENABLE 87: FW DNLD */
+				pins = "gpio89", "gpio87";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio89", "gpio87";
+				drive-strength = <2>;
+				bias-disable;
+			};
 		};
 	};
 
