@@ -3361,10 +3361,10 @@ static char *smb_health_text[] = {
 static int smbchg_check_temp_state(struct smbchg_chip *chip, int batt_temp)
 {
 	int hotspot;
-	int temp_state = chip->temp_state;
+	int temp_state = POWER_SUPPLY_HEALTH_GOOD;
 
 	if (!chip)
-		return;
+		return 0;
 
 	mutex_lock(&chip->check_temp_lock);
 
