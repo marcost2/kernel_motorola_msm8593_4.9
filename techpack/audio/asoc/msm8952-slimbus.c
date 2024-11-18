@@ -3792,10 +3792,10 @@ void msm_tdm_shutdown(struct snd_pcm_substream *substream)
 static int msm8952_mclk_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
+#ifndef CONFIG_SND_SOC_MADERA
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	pr_debug("%s: event = %d\n", __func__, event);
 
-#ifndef CONFIG_SND_SOC_MADERA
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		return msm8952_enable_codec_mclk(codec, 1, true);
