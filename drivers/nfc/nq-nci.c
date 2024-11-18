@@ -148,15 +148,6 @@ static irqreturn_t nqx_dev_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int is_data_available_for_read(struct nqx_dev *nqx_dev)
-{
-	int ret;
-
-	nqx_enable_irq(nqx_dev);
-	ret = wait_event_interruptible(nqx_dev->read_wq, !nqx_dev->irq_enabled);
-	return ret;
-}
-
 static ssize_t nfc_read(struct file *filp, char __user *buf,
 					size_t count, loff_t *offset)
 {
@@ -606,11 +597,6 @@ static int nfcc_hw_check(struct i2c_client *client, unsigned int enable_gpio)
 		"%s: - i2c_master_send Error\n", __func__);
 		goto err_nfcc_hw_check;
 	}
-	ret = is_data_available_for_read(nqx_dev);
-	if (ret < 0) {
-		nqx_disable_irq(nqx_dev);
-		goto err_nfcc_hw_check;
-	}
 
 	/* Read Response of RESET command */
 	ret = i2c_master_recv(client, nci_reset_rsp,
@@ -634,7 +620,6 @@ err_nfcc_core_init_fail:
 	__func__, nci_reset_rsp[0],
 	nci_reset_rsp[1], nci_reset_rsp[2]);
 
-err_nfcc_hw_check:
 	ret = -ENXIO;
 	dev_err(&client->dev,
 		"%s: - NFCC HW not available\n", __func__);
